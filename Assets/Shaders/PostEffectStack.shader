@@ -62,5 +62,19 @@
 			ENDHLSL
 			
 		}
+		
+		Pass
+		{
+			//4.Luminance
+			
+			HLSLPROGRAM
+			
+			#pragma target 3.5
+			#pragma vertex DefaultPassVertex
+			#pragma fragment LuminancePassFragment
+			
+			ENDHLSL
+			
+		}
 	}
 }

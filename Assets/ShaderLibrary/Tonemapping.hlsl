@@ -1,41 +1,46 @@
 #ifndef MYRP_TONEMAPPING_INCLUDED
 	#define MYRP_TONEMAPPING_INCLUDED
 	
+	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+	
+	
 	//色调映射 常用常熟 11.2
 	//http://filmicworlds.com/blog/filmic-tonemapping-operators/
 	
 	CBUFFER_START(MyToneMapping)
 	
-	//mainColor .yz->允许的最小值/最大值亮度，
-	float4 cb3_v4;
+	//mainColor .xy->允许的最小值/最大值亮度，
+	float2 luminClamp;
 	
-	//.xyz->ToneMapU2Func曲线的ABC参数
-	float4 cb3_v7;
+	//mainColor .xyz->ToneMapU2Func曲线的ABC参数
+	float3 curveABC;
 	
-	//.xyz->ToneMapU2Func曲线的DEF参数
-	float4 cb3_v8;
+	//mainColor .xyz->ToneMapU2Func曲线的DEF参数
+	float3 curveDEF;
 	
 	//mainColor .x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
-	float4 cb3_v16;
+	float3 customData;
 	
-	//secondColor .yz->允许的最小值/最大值亮度，
-	float4 cb3_v9;
+	//secondColor .xy->允许的最小值/最大值亮度，
+	float2 luminClamp1;
 	
 	//secondColor .xyz->ToneMapU2Func曲线的ABC参数
-	float4 cb3_v11;
+	float3 curveABC1;
 	
 	//secondColor .xyz->ToneMapU2Func曲线的DEF参数
-	float4 cb3_v12;
+	float3 curveDEF1;
 	
 	//secondColor .x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
-	float4 cb3_v17;
+	float3 customData1;
 	
-	//.x float lerp
-	float4 cb3_v13;
+	//mainColor&secondColor color lerp
+	float colorLerp;
 	CBUFFER_END
 	
-	TEXTURE2D(HDRColorTex);
-	TEXTURE2D(AvgLuminanceTex);
+	TEXTURE2D(_HDRColorTex);
+	
+	TEXTURE2D(_AvgLuminanceTex);
+	SAMPLER(sampler_AvgLuminanceTex);
 	
 	struct VertexInput
 	{
@@ -45,7 +50,6 @@
 	struct VertexOutput
 	{
 		float4 clipPos: SV_POSITION;
-		float2 uv: TEXCOORD0;
 	};
 	
 	float3 U2Func(float A, float B, float C, float D, float E, float F, float3 color)
@@ -82,44 +86,52 @@
 		return exposure;
 	}
 	
+	VertexOutput TonemappingVert(VertexInput i)
+	{
+		VertexOutput o;
+		o.clipPos = float4(i.pos.xy, 0.0, 1.0);
+		return o;
+	}
+	
 	float4 TonemappingSimpleFrag(VertexOutput i): SV_TARGET
 	{
-		float avgLuminance = AvgLuminanceTex.Load(int3(0, 0, 0));
-		avgLuminance = clamp(avgLuminance, cb3_v4.y, cb3_v4.z);
+		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5));
+
+		avgLuminance = clamp(avgLuminance, luminClamp.x, luminClamp.y);
 		avgLuminance = max(avgLuminance, 1e-4);
 		
-		float scaledWhitePoint = cb3_v16.x * 11.2;
+		float scaledWhitePoint = customData.x * 11.2;
 		
 		float luma = avgLuminance / scaledWhitePoint;
-		luma = pow(luma, cb3_v16.z);
+		luma = pow(luma, customData.z);
 		
 		luma = luma * scaledWhitePoint;
-		luma = cb3_v16.x / luma;
+		luma = customData.x / luma;
 		
-		float3 HDRColor = HDRColorTex.Load(uint3(i.xy, 0)).rgb;
+		float3 HDRColor = _HDRColorTex.Load(uint3(i.clipPos.xy, 0)).rgb;
 		
-		float3 color = ToneMapU2Func(cb3_v7.x, cb3_v7.y, cb3_v7.z, cb3_v8.x, cb3_v8.y,
-		cb3_v8.z, luma * HDRColor, cb3_v16.y);
+		float3 color = ToneMapU2Func(curveABC.x, curveABC.y, curveABC.z, curveDEF.x, curveDEF.y,
+		curveDEF.z, luma * HDRColor, customData.y);
 		
 		return float4(color, 1);
 	}
 	
 	float4 TonemappingLerpFrag(VertexOutput i): SV_TARGET
 	{
-		float avgLuminance = AvgLuminanceTex.Load(int3(0, 0, 0));
+		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5));
 		
-		float exposure1 = GetExposure(avgLuminance, cb3_v9.y, cb3_v9.z, cb3_v17.x, cb3_v17.z);
-		float exposure2 = GetExposure(avgLuminance, cb3_v4.y, cb3_v4.z, cb3_v16.x, cb3_v16.z);
+		float exposure1 = GetExposure(avgLuminance, luminClamp1.x, luminClamp1.y, customData1.x, customData1.z);
+		float exposure2 = GetExposure(avgLuminance, luminClamp.x, luminClamp.y, customData.x, customData.z);
 		
-		float3 HDRColor = HDRColorTex.Load(int3(i.xy, 0)).rgb;
+		float3 HDRColor = _HDRColorTex.Load(int3(i.clipPos.xy, 0)).rgb;
 		
-		float3 color1 = ToneMapU2Func(cb3_v11.x, cb3_v11.y, cb3_v11.z, cb3_v12.x, cb3_v12.y,
-		cb3_v12.z, exposure1 * HDRColor, cb3_v17.y);
+		float3 color1 = ToneMapU2Func(curveABC1.x, curveABC1.y, curveABC1.z, curveDEF1.x, curveDEF1.y,
+		curveDEF1.z, exposure1 * HDRColor, customData1.y);
 		
-		float3 color2 = ToneMapU2Func(cb3_v7.x, cb3_v7.y, cb3_v7.z, cb3_v8.x, cb3_v8.y,
-		cb3_v8.z, exposure2 * HDRColor, cb3_v16.y);
+		float3 color2 = ToneMapU2Func(curveABC.x, curveABC.y, curveABC.z, curveDEF.x, curveDEF.y,
+		curveDEF.z, exposure2 * HDRColor, customData.y);
 		
-		float3 finalColor = lerp(color2, color1, cb3_v13.x);
+		float3 finalColor = lerp(color2, color1, colorLerp.x);
 		return float4(finalColor, 1);
 	}
 	

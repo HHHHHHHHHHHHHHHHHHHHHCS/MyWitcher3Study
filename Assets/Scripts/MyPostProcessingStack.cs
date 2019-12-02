@@ -6,22 +6,33 @@ using UnityEngine.Rendering;
 [CreateAssetMenu(menuName = "Rendering/My Post-Processing Stack")]
 public class MyPostProcessingStack : ScriptableObject
 {
-    private enum Pass
+    private enum MainPass
     {
         Copy = 0,
         Blur,
         DepthStripes,
-        ToneMapping,
+        ToneMapping, //old don't use
+        Luminance,
+    }
+
+    private enum ToneMappingEnum
+    {
+        Simple,
+        Lerp,
     }
 
     private static Mesh fullScreenTriangle;
 
-    private static Material material;
+    private static Material mainMat, toneMappingMat;
+
 
     private static int mainTexID = Shader.PropertyToID("_MainTex");
     private static int tempTexID = Shader.PropertyToID("_MyPostProcessingStackTempTex");
+    private static int temp1TexID = Shader.PropertyToID("_MyPostProcessingStackTemp1Tex");
     private static int depthID = Shader.PropertyToID("_DepthTex");
     private static int resolvedTexID = Shader.PropertyToID("_MyPostProcessingStackResolvedTex");
+
+    private static int avgLuminanceTex = Shader.PropertyToID("_AvgLuminanceTex");
 
     //模糊强度
     [SerializeField, Range(0, 10)] private int blurStrength;
@@ -57,9 +68,15 @@ public class MyPostProcessingStack : ScriptableObject
         };
         fullScreenTriangle.UploadMeshData(true);
 
-        material = new Material(Shader.Find("Hidden/My Pipeline/PostEffectStack"))
+        mainMat = new Material(Shader.Find("Hidden/My Pipeline/PostEffectStack"))
         {
             name = "My Post-Processing Stack Material",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        toneMappingMat = new Material(Shader.Find("Hidden/My Pipeline/Tonemapping"))
+        {
+            name = "My Tonemapping Material",
             hideFlags = HideFlags.HideAndDontSave
         };
     }
@@ -85,7 +102,7 @@ public class MyPostProcessingStack : ScriptableObject
                 cb.GetTemporaryRT(resolvedTexID, width, height, 0, FilterMode.Bilinear, format);
                 if (toneMapping)
                 {
-                    ToneMapping(cb, cameraColorID, resolvedTexID);
+                    ToneMapping(cb, cameraColorID, resolvedTexID, width, height, format);
                 }
                 else
                 {
@@ -102,7 +119,7 @@ public class MyPostProcessingStack : ScriptableObject
         }
         else if (toneMapping)
         {
-            ToneMapping(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget);
+            ToneMapping(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, width, height, format);
         }
         else
         {
@@ -111,14 +128,25 @@ public class MyPostProcessingStack : ScriptableObject
     }
 
     private void Blit(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID,
-        Pass pass = Pass.Copy)
+        MainPass mainPass = MainPass.Copy)
     {
         cb.SetGlobalTexture(mainTexID, srcID);
 
         cb.SetRenderTarget(destID, RenderBufferLoadAction.DontCare,
             RenderBufferStoreAction.Store);
 
-        cb.DrawMesh(fullScreenTriangle, Matrix4x4.identity, material, 0, (int) pass);
+        cb.DrawMesh(fullScreenTriangle, Matrix4x4.identity, mainMat, 0, (int) mainPass);
+    }
+
+    private void Blit(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , Material mat, int pass = (int) MainPass.Copy)
+    {
+        cb.SetGlobalTexture(mainTexID, srcID);
+
+        cb.SetRenderTarget(destID, RenderBufferLoadAction.DontCare,
+            RenderBufferStoreAction.Store);
+
+        cb.DrawMesh(fullScreenTriangle, Matrix4x4.identity, mat, 0, (int) pass);
     }
 
     private void Blur(CommandBuffer cb, int cameraColorID, int width, int height)
@@ -127,7 +155,7 @@ public class MyPostProcessingStack : ScriptableObject
 
         if (blurStrength == 1)
         {
-            Blit(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, Pass.Blur);
+            Blit(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, MainPass.Blur);
             cb.EndSample("Blur");
             return;
         }
@@ -137,18 +165,18 @@ public class MyPostProcessingStack : ScriptableObject
 
         for (passesLeft = blurStrength; passesLeft > 2; passesLeft -= 2)
         {
-            Blit(cb, cameraColorID, tempTexID, Pass.Blur);
-            Blit(cb, tempTexID, cameraColorID, Pass.Blur);
+            Blit(cb, cameraColorID, tempTexID, MainPass.Blur);
+            Blit(cb, tempTexID, cameraColorID, MainPass.Blur);
         }
 
         if (passesLeft > 1)
         {
-            Blit(cb, cameraColorID, tempTexID, Pass.Blur);
-            Blit(cb, tempTexID, BuiltinRenderTextureType.CameraTarget, Pass.Blur);
+            Blit(cb, cameraColorID, tempTexID, MainPass.Blur);
+            Blit(cb, tempTexID, BuiltinRenderTextureType.CameraTarget, MainPass.Blur);
         }
         else
         {
-            Blit(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, Pass.Blur);
+            Blit(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, MainPass.Blur);
         }
 
         cb.ReleaseTemporaryRT(tempTexID);
@@ -163,19 +191,60 @@ public class MyPostProcessingStack : ScriptableObject
 
         cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Point, format);
         cb.SetGlobalTexture(depthID, cameraDepthID);
-        Blit(cb, cameraColorID, tempTexID, Pass.DepthStripes);
+        Blit(cb, cameraColorID, tempTexID, MainPass.DepthStripes);
         Blit(cb, tempTexID, cameraColorID);
         cb.ReleaseTemporaryRT(tempTexID);
 
         cb.EndSample("Depth Stripes");
     }
 
-    private void ToneMapping(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID)
+    private void ToneMapping(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , int width, int height, RenderTextureFormat format)
     {
         cb.BeginSample("Tone Mapping");
 
-        cb.SetGlobalFloat("_ReinhardModifier", 1f / (toneMappingRange * toneMappingRange));
-        Blit(cb, srcID, destID, Pass.ToneMapping);
+        int max = Mathf.Max(width, height);
+
+        int iterator = (int) Mathf.Ceil(Mathf.Log(max, 2));
+
+        if (iterator < 0)
+        {
+            Debug.LogError("Avg less than zero.");
+            return;
+        }
+
+        for (int i = 0; i < iterator - 1; i++)
+        {
+            width = Mathf.Max(1, width >> 1);
+            height = Mathf.Max(1, height >> 1);
+
+            if (i == 0)
+            {
+                cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
+                Blit(cb, srcID, tempTexID, MainPass.Luminance);
+            }
+            else if ((i & 1) == 1)
+            {
+                cb.GetTemporaryRT(temp1TexID, width, height, 0, FilterMode.Bilinear, format);
+                Blit(cb, tempTexID, temp1TexID);
+                cb.ReleaseTemporaryRT(tempTexID);
+            }
+            else
+            {
+                cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
+                Blit(cb, temp1TexID, tempTexID);
+                cb.ReleaseTemporaryRT(temp1TexID);
+            }
+        }
+
+
+        int endID = (iterator & 1) == 0 ? tempTexID : temp1TexID;
+
+        //Blit(cb, endID, destID, toneMappingMat, (int) ToneMappingEnum.Simple);
+        Blit(cb, endID, destID);
+
+        cb.ReleaseTemporaryRT(endID);
+
 
         cb.EndSample("Tone Mapping");
     }
