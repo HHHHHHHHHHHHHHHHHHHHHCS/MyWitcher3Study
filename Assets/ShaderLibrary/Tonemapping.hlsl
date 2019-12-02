@@ -1,24 +1,37 @@
 #ifndef MYRP_TONEMAPPING_INCLUDED
 	#define MYRP_TONEMAPPING_INCLUDED
 	
+	//色调映射 常用常熟 11.2
+	//http://filmicworlds.com/blog/filmic-tonemapping-operators/
+	
 	CBUFFER_START(MyToneMapping)
-	float4 cb3_v0;
-	float4 cb3_v1;
-	float4 cb3_v2;
-	float4 cb3_v3;
+	
+	//mainColor .yz->允许的最小值/最大值亮度，
 	float4 cb3_v4;
-	float4 cb3_v5;
-	float4 cb3_v6;
+	
+	//.xyz->ToneMapU2Func曲线的ABC参数
 	float4 cb3_v7;
+	
+	//.xyz->ToneMapU2Func曲线的DEF参数
 	float4 cb3_v8;
+	
+	//mainColor .x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
+	float4 cb3_v16;
+	
+	//secondColor .yz->允许的最小值/最大值亮度，
 	float4 cb3_v9;
-	float4 cb3_v10;
+	
+	//secondColor .xyz->ToneMapU2Func曲线的ABC参数
 	float4 cb3_v11;
+	
+	//secondColor .xyz->ToneMapU2Func曲线的DEF参数
 	float4 cb3_v12;
+	
+	//secondColor .x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
+	float4 cb3_v17;
+	
+	//.x float lerp
 	float4 cb3_v13;
-	float4 cb3_v14;
-	float4 cb3_v15;
-	float4 cb3_v16, cb3_v17;
 	CBUFFER_END
 	
 	TEXTURE2D(HDRColorTex);
