@@ -222,55 +222,57 @@ public class MyPostProcessingStack : ScriptableObject
 
         int max = Mathf.Max(width, height);
 
-        int iterator = (int) Mathf.Ceil(Mathf.Log(max, 2));
+        int iterator = (int) (Mathf.Log(max, 2));
 
-        if (iterator <= 2)
+        cb.GetTemporaryRT(avgLuminanceTexID, 1,1,0, FilterMode.Bilinear, format);
+
+        if (iterator > 0)
         {
-            Debug.LogError("Avg log iterator less than one.");
-            Blit(cb, srcID, destID);
-            return;
+            for (int i = 0; i < iterator; i++)
+            {
+                width = Mathf.Max(1, width >> 1);
+                height = Mathf.Max(1, height >> 1);
+
+                if (i == 0)
+                {
+                    cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
+                    Blit(cb, srcID, tempTexID);
+                }
+                else if ((i & 1) == 1)
+                {
+                    cb.GetTemporaryRT(temp1TexID, width, height, 0, FilterMode.Bilinear, format);
+                    Blit(cb, tempTexID, temp1TexID);
+                    cb.ReleaseTemporaryRT(tempTexID);
+                }
+                else
+                {
+                    cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
+                    Blit(cb, temp1TexID, tempTexID);
+                    cb.ReleaseTemporaryRT(temp1TexID);
+                }
+            }
+
+            int endID = (iterator & 1) == 0 ? tempTexID : temp1TexID;
+            Blit(cb, endID, avgLuminanceTexID, MainPass.Luminance);
+            cb.ReleaseTemporaryRT(endID);
+        }
+        else
+        {
+            Blit(cb, srcID, avgLuminanceTexID, MainPass.Luminance);
         }
 
-        iterator -= 2;
 
-        for (int i = 0; i <= iterator; i++)
-        {
-            width = Mathf.Max(2, width >> 1);
-            height = Mathf.Max(2, height >> 1);
-
-            if (i == 0)
-            {
-                cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
-                Blit(cb, srcID, tempTexID);
-            }
-            else if ((i & 1) == 1)
-            {
-                cb.GetTemporaryRT(temp1TexID, width, height, 0, FilterMode.Bilinear, format);
-                Blit(cb, tempTexID, temp1TexID);
-                cb.ReleaseTemporaryRT(tempTexID);
-            }
-            else
-            {
-                cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
-                Blit(cb, temp1TexID, tempTexID);
-                cb.ReleaseTemporaryRT(temp1TexID);
-            }
-        }
-
-
-        int endID = (iterator & 1) == 0 ? tempTexID : temp1TexID;
 
         cb.SetGlobalVector(luminClampID, tmluminanceClamp);
         cb.SetGlobalVector(curveABCID, tmCurveABC);
         cb.SetGlobalVector(curveDEFID, tmcurveDEF);
         cb.SetGlobalVector(customDataID, tmCustomData);
+        cb.SetGlobalTexture(avgLuminanceTexID, avgLuminanceTexID);
         cb.SetGlobalTexture(hdrColorTexID, srcID);
-        cb.SetGlobalTexture(avgLuminanceTexID, endID);
 
-        Blit(cb, endID, destID, toneMappingMat, (int) ToneMappingEnum.Simple);
-        //Blit(cb, endID, destID, MainPass.Luminance);
+        Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.Simple);
 
-        cb.ReleaseTemporaryRT(endID);
+        cb.ReleaseTemporaryRT(avgLuminanceTexID);
 
 
         cb.EndSample("Tone Mapping");
