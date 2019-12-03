@@ -32,7 +32,12 @@ public class MyPostProcessingStack : ScriptableObject
     private static int depthID = Shader.PropertyToID("_DepthTex");
     private static int resolvedTexID = Shader.PropertyToID("_MyPostProcessingStackResolvedTex");
 
-    private static int avgLuminanceTex = Shader.PropertyToID("_AvgLuminanceTex");
+    private static int luminClampID = Shader.PropertyToID("luminClamp");
+    private static int curveABCID = Shader.PropertyToID("curveABC");
+    private static int curveDEFID = Shader.PropertyToID("curveDEF");
+    private static int customDataID = Shader.PropertyToID("customData");
+    private static int hdrColorTexID = Shader.PropertyToID("_HDRColorTex");
+    private static int avgLuminanceTexID = Shader.PropertyToID("_AvgLuminanceTex");
 
     //模糊强度
     [SerializeField, Range(0, 10)] private int blurStrength;
@@ -44,7 +49,18 @@ public class MyPostProcessingStack : ScriptableObject
     [SerializeField] private bool toneMapping;
 
     //颜色映射范围
-    [SerializeField, Range(1f, 100f)] private float toneMappingRange = 100f;
+    //[SerializeField, Range(1f, 100f)] private float toneMappingRange = 100f;
+
+    //暂时只有一个颜色  luminance 的 允许的最小值/最大值亮度
+    [Space(10f), Header("Tonemapping"), SerializeField]
+    private Vector2 tmluminanceClamp;
+
+    //ToneMapU2Func曲线 ABC DEF 曲线参数
+    [SerializeField] private Vector3 tmCurveABC, tmcurveDEF;
+
+    //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
+    [SerializeField] private Vector3 tmCustomData;
+
 
     public bool NeedsDepth => depthStripes;
 
@@ -207,21 +223,24 @@ public class MyPostProcessingStack : ScriptableObject
 
         int iterator = (int) Mathf.Ceil(Mathf.Log(max, 2));
 
-        if (iterator < 0)
+        if (iterator <= 1)
         {
-            Debug.LogError("Avg less than zero.");
+            Debug.LogError("Avg log iterator less than one.");
+            Blit(cb, srcID, destID);
             return;
         }
 
-        for (int i = 0; i < iterator - 1; i++)
+        iterator -= 1;
+
+        for (int i = 0; i < iterator; i++)
         {
-            width = Mathf.Max(1, width >> 1);
-            height = Mathf.Max(1, height >> 1);
+            width = Mathf.Max(2, width >> 1);
+            height = Mathf.Max(2, height >> 1);
 
             if (i == 0)
             {
                 cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
-                Blit(cb, srcID, tempTexID, MainPass.Luminance);
+                Blit(cb, srcID, tempTexID);
             }
             else if ((i & 1) == 1)
             {
@@ -240,8 +259,16 @@ public class MyPostProcessingStack : ScriptableObject
 
         int endID = (iterator & 1) == 0 ? tempTexID : temp1TexID;
 
+        cb.SetGlobalVector(luminClampID,tmluminanceClamp);
+        cb.SetGlobalVector(curveABCID, tmCurveABC);
+        cb.SetGlobalVector(curveDEFID, tmcurveDEF);
+        cb.SetGlobalVector(customDataID, tmCustomData);
+        cb.SetGlobalTexture(hdrColorTexID, srcID);
+        cb.SetGlobalTexture(avgLuminanceTexID, endID);
+
+        //TODO:
         //Blit(cb, endID, destID, toneMappingMat, (int) ToneMappingEnum.Simple);
-        Blit(cb, endID, destID);
+        //Blit(cb, endID, destID, MainPass.Luminance);
 
         cb.ReleaseTemporaryRT(endID);
 
