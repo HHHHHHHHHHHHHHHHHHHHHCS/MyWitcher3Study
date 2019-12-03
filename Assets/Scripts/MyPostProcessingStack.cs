@@ -51,15 +51,16 @@ public class MyPostProcessingStack : ScriptableObject
     //颜色映射范围
     //[SerializeField, Range(1f, 100f)] private float toneMappingRange = 100f;
 
-    //暂时只有一个颜色  luminance 的 允许的最小值/最大值亮度
+    //暂时只有一个颜色 (不支持LERP)  luminance 的 允许的最小值/最大值亮度
     [Space(10f), Header("Tonemapping"), SerializeField]
-    private Vector2 tmluminanceClamp;
+    private Vector2 tmluminanceClamp = new Vector2(0f, 2f);
 
     //ToneMapU2Func曲线 ABC DEF 曲线参数
-    [SerializeField] private Vector3 tmCurveABC, tmcurveDEF;
+    [SerializeField] private Vector3 tmCurveABC = new Vector3(0.25f, 0.306f, 0.099f),
+        tmcurveDEF = new Vector3(0.35f, 0.025f, 0.40f);
 
     //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
-    [SerializeField] private Vector3 tmCustomData;
+    [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f,1.50f,0.5f);
 
 
     public bool NeedsDepth => depthStripes;
@@ -223,16 +224,16 @@ public class MyPostProcessingStack : ScriptableObject
 
         int iterator = (int) Mathf.Ceil(Mathf.Log(max, 2));
 
-        if (iterator <= 1)
+        if (iterator <= 2)
         {
             Debug.LogError("Avg log iterator less than one.");
             Blit(cb, srcID, destID);
             return;
         }
 
-        iterator -= 1;
+        iterator -= 2;
 
-        for (int i = 0; i < iterator; i++)
+        for (int i = 0; i <= iterator; i++)
         {
             width = Mathf.Max(2, width >> 1);
             height = Mathf.Max(2, height >> 1);
@@ -259,15 +260,14 @@ public class MyPostProcessingStack : ScriptableObject
 
         int endID = (iterator & 1) == 0 ? tempTexID : temp1TexID;
 
-        cb.SetGlobalVector(luminClampID,tmluminanceClamp);
+        cb.SetGlobalVector(luminClampID, tmluminanceClamp);
         cb.SetGlobalVector(curveABCID, tmCurveABC);
         cb.SetGlobalVector(curveDEFID, tmcurveDEF);
         cb.SetGlobalVector(customDataID, tmCustomData);
         cb.SetGlobalTexture(hdrColorTexID, srcID);
         cb.SetGlobalTexture(avgLuminanceTexID, endID);
 
-        //TODO:
-        //Blit(cb, endID, destID, toneMappingMat, (int) ToneMappingEnum.Simple);
+        Blit(cb, endID, destID, toneMappingMat, (int) ToneMappingEnum.Simple);
         //Blit(cb, endID, destID, MainPass.Luminance);
 
         cb.ReleaseTemporaryRT(endID);

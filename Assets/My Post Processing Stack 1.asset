@@ -15,4 +15,7 @@ MonoBehaviour:
   blurStrength: 7
   depthStripes: 0
   toneMapping: 1
-  toneMappingRange: 100
+  tmluminanceClamp: {x: 0, y: 2}
+  tmCurveABC: {x: 0.25, y: 0.306, z: 0.99}
+  tmcurveDEF: {x: 0.35, y: 0.025, z: 0.4}
+  tmCustomData: {x: 0.245, y: 1.5, z: 0.5}
