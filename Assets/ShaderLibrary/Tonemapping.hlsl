@@ -3,6 +3,13 @@
 	
 	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 	
+	//SetupCameraProperties() 传入 _ProjectionParams 和 _ZBufferParams
+	float4 _ProjectionParams;
+
+	CBUFFER_START(MyEyeAdaptation)
+	//.x/y 下降/上升的渐变速度
+	float2 speedFactor;
+	CBUFFER_END
 	
 	//色调映射 常用常熟 11.2
 	//http://filmicworlds.com/blog/filmic-tonemapping-operators/
@@ -38,9 +45,16 @@
 	CBUFFER_END
 	
 	TEXTURE2D(_HDRColorTex);
+	SAMPLER(sampler_HDRColorTex);
 	
 	TEXTURE2D(_AvgLuminanceTex);
 	SAMPLER(sampler_AvgLuminanceTex);
+	
+	TEXTURE2D(_PreviousAvgLuminanceTex);
+	SAMPLER(sampler_PreviousAvgLuminanceTex);
+	
+	TEXTURE2D(_CurrentAvgLuminanceTex);
+	SAMPLER(sampler_CurrentAvgLuminanceTex);
 	
 	struct VertexInput
 	{
@@ -50,6 +64,7 @@
 	struct VertexOutput
 	{
 		float4 clipPos: SV_POSITION;
+		float2 uv: TEXCOORD0;
 	};
 	
 	float3 U2Func(float A, float B, float C, float D, float E, float F, float3 color)
@@ -86,17 +101,41 @@
 		return exposure;
 	}
 	
-	VertexOutput TonemappingVert(VertexInput i)
+	VertexOutput TonemappingVert(VertexInput input)
 	{
-		VertexOutput o;
-		o.clipPos = float4(i.pos.xy, 0.0, 1.0);
-		return o;
+		VertexOutput output;
+		output.clipPos = float4(input.pos.x, input.pos.y, 0.0, 1.0);
+		output.uv = input.pos.xy * 0.5 + 0.5;
+		
+		//当不使用 OpenGL 时，场景视图窗口和小型相机预览将被翻转
+		//检查 ProjectionParams 向量的 x 组件来检测翻转是否发生
+		//SetupCameraProperties 会设置 ProjectionParams
+		if (_ProjectionParams.x < 0.0)
+		{
+			output.uv.y = 1.0 - output.uv.y;
+		}
+		
+		return output;
 	}
 	
-	float4 TonemappingSimpleFrag(VertexOutput i): SV_TARGET
+	float4 EyeAdaptationFrag(VertexOutput i): SV_TARGET
 	{
-		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5));
-
+		float currentAvgLuminance = _PreviousAvgLuminanceTex.SampleLevel(sampler_PreviousAvgLuminanceTex, float2(0.5, 0.5), 0).r;
+		float previousAvgLuminance = _CurrentAvgLuminanceTex.SampleLevel(sampler_CurrentAvgLuminanceTex, float2(0.5, 0.5), 0).r;
+		
+		//根据正/负  用不同的 渐变速度
+		float adaptationSpeedFactor = (currentAvgLuminance <= previousAvgLuminance) ? speedFactor.x: speedFactor.y;
+		
+		adaptationSpeedFactor = saturate(adaptationSpeedFactor);
+		
+		float adaptedLuminance = lerp(previousAvgLuminance, currentAvgLuminance, adaptationSpeedFactor);
+		return adaptedLuminance;
+	}
+	
+	float4 TonemappingSimpleFrag(VertexOutput input): SV_TARGET
+	{
+		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5)).r;
+		
 		avgLuminance = clamp(avgLuminance, luminClamp.x, luminClamp.y);
 		avgLuminance = max(avgLuminance, 1e-4);
 		
@@ -108,7 +147,8 @@
 		luma = luma * scaledWhitePoint;
 		luma = customData.x / luma;
 		
-		float3 HDRColor = _HDRColorTex.Load(uint3(i.clipPos.xy, 0)).rgb;
+		
+		float3 HDRColor = SAMPLE_TEXTURE2D(_HDRColorTex, sampler_HDRColorTex, input.uv).rgb;
 		
 		float3 color = ToneMapU2Func(curveABC.x, curveABC.y, curveABC.z, curveDEF.x, curveDEF.y,
 		curveDEF.z, luma * HDRColor, customData.y);
@@ -116,14 +156,14 @@
 		return float4(color, 1);
 	}
 	
-	float4 TonemappingLerpFrag(VertexOutput i): SV_TARGET
+	float4 TonemappingLerpFrag(VertexOutput input): SV_TARGET
 	{
-		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5));
+		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5)).r;
 		
 		float exposure1 = GetExposure(avgLuminance, luminClamp1.x, luminClamp1.y, customData1.x, customData1.z);
 		float exposure2 = GetExposure(avgLuminance, luminClamp.x, luminClamp.y, customData.x, customData.z);
 		
-		float3 HDRColor = _HDRColorTex.Load(int3(i.clipPos.xy, 0)).rgb;
+		float3 HDRColor = SAMPLE_TEXTURE2D(_HDRColorTex, sampler_HDRColorTex, input.uv).rgb;
 		
 		float3 color1 = ToneMapU2Func(curveABC1.x, curveABC1.y, curveABC1.z, curveDEF1.x, curveDEF1.y,
 		curveDEF1.z, exposure1 * HDRColor, customData1.y);

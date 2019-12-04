@@ -17,8 +17,9 @@ public class MyPostProcessingStack : ScriptableObject
 
     private enum ToneMappingEnum
     {
-        Simple,
-        Lerp,
+        EyeAdaptation = 0,
+        ToneMappingSimple,
+        ToneMappingLerp,
     }
 
     private static Mesh fullScreenTriangle;
@@ -45,6 +46,9 @@ public class MyPostProcessingStack : ScriptableObject
     //深度处理
     [SerializeField] private bool depthStripes;
 
+    //眼睛适应
+    [SerializeField] private bool eyeAdaptation;
+
     //颜色映射
     [SerializeField] private bool toneMapping;
 
@@ -60,7 +64,7 @@ public class MyPostProcessingStack : ScriptableObject
         tmcurveDEF = new Vector3(0.35f, 0.025f, 0.40f);
 
     //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
-    [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f,1.50f,0.5f);
+    [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f, 1.50f, 0.5f);
 
 
     public bool NeedsDepth => depthStripes;
@@ -156,7 +160,7 @@ public class MyPostProcessingStack : ScriptableObject
     }
 
     private void Blit(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
-        , Material mat, int pass = (int) MainPass.Copy)
+        , Material mat, int pass = 0)
     {
         cb.SetGlobalTexture(mainTexID, srcID);
 
@@ -224,7 +228,7 @@ public class MyPostProcessingStack : ScriptableObject
 
         int iterator = (int) (Mathf.Log(max, 2));
 
-        cb.GetTemporaryRT(avgLuminanceTexID, 1,1,0, FilterMode.Bilinear, format);
+        cb.GetTemporaryRT(avgLuminanceTexID, 1, 1, 0, FilterMode.Bilinear, format);
 
         if (iterator > 0)
         {
@@ -261,7 +265,7 @@ public class MyPostProcessingStack : ScriptableObject
             Blit(cb, srcID, avgLuminanceTexID, MainPass.Luminance);
         }
 
-
+        //TODO:计算AVG 
 
         cb.SetGlobalVector(luminClampID, tmluminanceClamp);
         cb.SetGlobalVector(curveABCID, tmCurveABC);
@@ -270,7 +274,7 @@ public class MyPostProcessingStack : ScriptableObject
         cb.SetGlobalTexture(avgLuminanceTexID, avgLuminanceTexID);
         cb.SetGlobalTexture(hdrColorTexID, srcID);
 
-        Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.Simple);
+        Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
 
         cb.ReleaseTemporaryRT(avgLuminanceTexID);
 

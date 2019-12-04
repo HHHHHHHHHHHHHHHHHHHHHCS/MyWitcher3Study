@@ -96,7 +96,7 @@
 	
 	float4 LuminancePassFragment(VertexOutput input): SV_TARGET
 	{
-		float3 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv);
+		float3 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, input.uv).rgb;
 		
 		color = dot(float3(0.2125, 0.7154, 0.0721), color);
 		
