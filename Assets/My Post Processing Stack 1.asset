@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   blurStrength: 0
   depthStripes: 0
-  eyeAdaptation: 0
+  eyeAdaptation: 1
+  eyeAdaptationSpeed: {x: 0.05, y: 0.05}
   toneMapping: 1
   tmluminanceClamp: {x: 0, y: 2}
   tmCurveABC: {x: 0.25, y: 0.306, z: 0.99}

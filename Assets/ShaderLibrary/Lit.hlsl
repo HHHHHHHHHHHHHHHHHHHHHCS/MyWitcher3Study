@@ -568,7 +568,7 @@
 		#if defined(LOD_FADE_CROSSFADE)
 			LODCrossFadeClip(input.clipPos);
 		#endif
-		
+
 		input.normal = normalize(input.normal);
 		input.normal = IS_FRONT_VFACE(isFrontFace, input.normal, -input.normal);
 		

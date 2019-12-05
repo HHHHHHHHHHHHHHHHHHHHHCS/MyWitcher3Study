@@ -8,7 +8,7 @@
 
 	CBUFFER_START(MyEyeAdaptation)
 	//.x/y 下降/上升的渐变速度
-	float2 speedFactor;
+	float2 eyeAdaptationSpeedFactor;
 	CBUFFER_END
 	
 	//色调映射 常用常熟 11.2
@@ -124,7 +124,7 @@
 		float previousAvgLuminance = _CurrentAvgLuminanceTex.SampleLevel(sampler_CurrentAvgLuminanceTex, float2(0.5, 0.5), 0).r;
 		
 		//根据正/负  用不同的 渐变速度
-		float adaptationSpeedFactor = (currentAvgLuminance <= previousAvgLuminance) ? speedFactor.x: speedFactor.y;
+		float adaptationSpeedFactor = (currentAvgLuminance <= previousAvgLuminance) ? eyeAdaptationSpeedFactor.x: eyeAdaptationSpeedFactor.y;
 		
 		adaptationSpeedFactor = saturate(adaptationSpeedFactor);
 		

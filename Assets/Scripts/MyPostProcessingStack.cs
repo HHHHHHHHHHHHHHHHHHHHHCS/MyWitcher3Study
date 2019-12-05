@@ -33,6 +33,10 @@ public class MyPostProcessingStack : ScriptableObject
     private static int depthID = Shader.PropertyToID("_DepthTex");
     private static int resolvedTexID = Shader.PropertyToID("_MyPostProcessingStackResolvedTex");
 
+    private static int eyeAdaptationSpeedFactorID = Shader.PropertyToID("eyeAdaptationSpeedFactor");
+    private static int previousAvgLuminanceTex = Shader.PropertyToID("_PreviousAvgLuminanceTex");
+    private static int currentAvgLuminanceTex = Shader.PropertyToID("_CurrentAvgLuminanceTex");
+
     private static int luminClampID = Shader.PropertyToID("luminClamp");
     private static int curveABCID = Shader.PropertyToID("curveABC");
     private static int curveDEFID = Shader.PropertyToID("curveDEF");
@@ -40,24 +44,33 @@ public class MyPostProcessingStack : ScriptableObject
     private static int hdrColorTexID = Shader.PropertyToID("_HDRColorTex");
     private static int avgLuminanceTexID = Shader.PropertyToID("_AvgLuminanceTex");
 
+
     //模糊强度
     [SerializeField, Range(0, 10)] private int blurStrength;
 
     //深度处理
     [SerializeField] private bool depthStripes;
 
+    //-------------------------
+
     //眼睛适应
-    [SerializeField] private bool eyeAdaptation;
+    [Space(10f), Header("EyeAdaptation"), SerializeField]
+    private bool eyeAdaptation;
+
+    //眼睛适应速度 根据插值 正/负  用不同的 渐变速度
+    [SerializeField] private Vector2 eyeAdaptationSpeed;
+
+    //-------------------------
 
     //颜色映射
-    [SerializeField] private bool toneMapping;
+    [Space(10f), Header("Tonemapping"), SerializeField]
+    private bool toneMapping;
 
     //颜色映射范围
     //[SerializeField, Range(1f, 100f)] private float toneMappingRange = 100f;
 
     //暂时只有一个颜色 (不支持LERP)  luminance 的 允许的最小值/最大值亮度
-    [Space(10f), Header("Tonemapping"), SerializeField]
-    private Vector2 tmluminanceClamp = new Vector2(0f, 2f);
+    [SerializeField] private Vector2 tmluminanceClamp = new Vector2(0f, 2f);
 
     //ToneMapU2Func曲线 ABC DEF 曲线参数
     [SerializeField] private Vector3 tmCurveABC = new Vector3(0.25f, 0.306f, 0.099f),
@@ -65,6 +78,10 @@ public class MyPostProcessingStack : ScriptableObject
 
     //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
     [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f, 1.50f, 0.5f);
+
+    private RenderTexture eyeAdaptationPreRT;
+    private RenderTexture eyeAdaptationEndRT;
+    private RenderTexture avgLuminanceTexRT;
 
 
     public bool NeedsDepth => depthStripes;
@@ -127,6 +144,21 @@ public class MyPostProcessingStack : ScriptableObject
                 }
                 else
                 {
+                    if (eyeAdaptationPreRT)
+                    {
+                        DestroyImmediate(eyeAdaptationPreRT);
+                    }
+
+                    if (eyeAdaptationEndRT)
+                    {
+                        DestroyImmediate(eyeAdaptationEndRT);
+                    }
+
+                    if (avgLuminanceTexRT)
+                    {
+                        DestroyImmediate(avgLuminanceTexRT);
+                    }
+
                     Blit(cb, cameraColorID, resolvedTexID);
                 }
 
@@ -228,7 +260,13 @@ public class MyPostProcessingStack : ScriptableObject
 
         int iterator = (int) (Mathf.Log(max, 2));
 
-        cb.GetTemporaryRT(avgLuminanceTexID, 1, 1, 0, FilterMode.Bilinear, format);
+        if (avgLuminanceTexRT == null)
+        {
+            avgLuminanceTexRT = new RenderTexture(1, 1, 0, format)
+            {
+                name = "avgLuminanceTexRT"
+            };
+        }
 
         if (iterator > 0)
         {
@@ -256,23 +294,59 @@ public class MyPostProcessingStack : ScriptableObject
                 }
             }
 
-            int endID = (iterator & 1) == 0 ? tempTexID : temp1TexID;
-            Blit(cb, endID, avgLuminanceTexID, MainPass.Luminance);
+            //int endID = ((iterator - 1) & 1) == 0 ? tempTexID : temp1TexID;
+            int endID = (iterator & 1) == 0 ? temp1TexID : tempTexID;
+            Blit(cb, endID, avgLuminanceTexRT, MainPass.Luminance);
             cb.ReleaseTemporaryRT(endID);
         }
         else
         {
-            Blit(cb, srcID, avgLuminanceTexID, MainPass.Luminance);
+            Blit(cb, srcID, avgLuminanceTexRT, MainPass.Luminance);
         }
 
-        //TODO:计算AVG 
+        if (eyeAdaptation)
+        {
+            if (eyeAdaptationPreRT == null)
+            {
+                eyeAdaptationPreRT = new RenderTexture(1, 1, 0, format)
+                {
+                    name = "eyeAdaptationPreRT"
+                };
+
+                eyeAdaptationEndRT = new RenderTexture(1, 1, 0, format)
+                {
+                    name = "eyeAdaptationEndRT"
+                };
+            }
+
+            cb.SetGlobalVector(eyeAdaptationSpeedFactorID, eyeAdaptationSpeed);
+            cb.SetGlobalTexture(previousAvgLuminanceTex, eyeAdaptationPreRT);
+            cb.SetGlobalTexture(currentAvgLuminanceTex, avgLuminanceTexRT);
+
+
+            Blit(cb, avgLuminanceTexRT, eyeAdaptationEndRT, toneMappingMat, (int) ToneMappingEnum.EyeAdaptation);
+            Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
+        }
+        else
+        {
+            if (avgLuminanceTexRT)
+            {
+                DestroyImmediate(avgLuminanceTexRT);
+            }
+
+            if (eyeAdaptationEndRT)
+            {
+                DestroyImmediate(eyeAdaptationEndRT);
+            }
+        }
 
         cb.SetGlobalVector(luminClampID, tmluminanceClamp);
         cb.SetGlobalVector(curveABCID, tmCurveABC);
         cb.SetGlobalVector(curveDEFID, tmcurveDEF);
         cb.SetGlobalVector(customDataID, tmCustomData);
-        cb.SetGlobalTexture(avgLuminanceTexID, avgLuminanceTexID);
         cb.SetGlobalTexture(hdrColorTexID, srcID);
+        cb.SetGlobalTexture(avgLuminanceTexID, eyeAdaptation ? eyeAdaptationEndRT : avgLuminanceTexRT);
+
 
         Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
 
