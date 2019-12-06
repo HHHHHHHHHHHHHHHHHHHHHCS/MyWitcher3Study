@@ -297,7 +297,6 @@ public class MyPostProcessingStack : ScriptableObject
 
         int iterator = (int) (Mathf.Log(max, 2));
 
-        int endID = 0;
 
         cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, format);
 
@@ -328,14 +327,16 @@ public class MyPostProcessingStack : ScriptableObject
             }
 
             //int endID = ((iterator - 1) & 1) == 0 ? tempTexID : temp1TexID;
-            endID = (iterator & 1) == 0 ? temp1TexID : tempTexID;
+            int endID = (iterator & 1) == 0 ? temp1TexID : tempTexID;
             Blit(cb, endID, avgLuminanceTexRTID, MainPass.Luminance);
+            //释放了 但是下面如果立马开辟一样的 有缓存显示BUG
+            cb.ReleaseTemporaryRT(endID);
         }
         else
         {
             Blit(cb, srcID, avgLuminanceTexRTID, MainPass.Luminance);
         }
-
+        
         cb.EndSample("AvgLuminance");
 
 
@@ -345,7 +346,6 @@ public class MyPostProcessingStack : ScriptableObject
 
         if (eyeAdaptation)
         {
-            cb.GetTemporaryRT(eyeAdaptationEndRT, 1, 1, 0, FilterMode.Bilinear, format);
 
             if (eyeAdaptationPreRT == null)
             {
@@ -353,17 +353,26 @@ public class MyPostProcessingStack : ScriptableObject
                 {
                     name = "eyeAdaptationPreRT"
                 };
+
+                Blit(cb, avgLuminanceTexRTID, eyeAdaptationPreRT);
+
+            }
+            else
+            {
+                cb.GetTemporaryRT(eyeAdaptationEndRT, 1, 1, 0, FilterMode.Bilinear, format);
+
+
+                cb.SetGlobalVector(eyeAdaptationSpeedFactorID, eyeAdaptationSpeed);
+                cb.SetGlobalTexture(previousAvgLuminanceTexID, eyeAdaptationPreRT);
+                cb.SetGlobalTexture(currentAvgLuminanceTexID, avgLuminanceTexRTID);
+
+
+                Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat, (int)ToneMappingEnum.EyeAdaptation);
+                Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
+
+                cb.ReleaseTemporaryRT(eyeAdaptationEndRT);
             }
 
-            cb.SetGlobalVector(eyeAdaptationSpeedFactorID, eyeAdaptationSpeed);
-            cb.SetGlobalTexture(previousAvgLuminanceTexID, eyeAdaptationPreRT);
-            cb.SetGlobalTexture(currentAvgLuminanceTexID, avgLuminanceTexRTID);
-
-
-            Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat, (int) ToneMappingEnum.EyeAdaptation);
-            Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
-
-            cb.ReleaseTemporaryRT(eyeAdaptationEndRT);
         }
         else
         {
@@ -398,11 +407,6 @@ public class MyPostProcessingStack : ScriptableObject
         Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
 
         cb.EndSample("ToneMapping");
-
-        if (iterator > 0)
-        {
-            cb.ReleaseTemporaryRT(endID);
-        }
 
         cb.ReleaseTemporaryRT(avgLuminanceTexRTID);
 
