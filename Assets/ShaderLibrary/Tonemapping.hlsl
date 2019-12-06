@@ -120,8 +120,8 @@
 	
 	float4 EyeAdaptationFrag(VertexOutput i): SV_TARGET
 	{
-		float currentAvgLuminance = _PreviousAvgLuminanceTex.SampleLevel(sampler_PreviousAvgLuminanceTex, float2(0.5, 0.5), 0).r;
-		float previousAvgLuminance = _CurrentAvgLuminanceTex.SampleLevel(sampler_CurrentAvgLuminanceTex, float2(0.5, 0.5), 0).r;
+		float previousAvgLuminance = _PreviousAvgLuminanceTex.SampleLevel(sampler_PreviousAvgLuminanceTex, float2(0.5, 0.5), 0).r;
+		float currentAvgLuminance = _CurrentAvgLuminanceTex.SampleLevel(sampler_CurrentAvgLuminanceTex, float2(0.5, 0.5), 0).r;
 		
 		//根据正/负  用不同的 渐变速度
 		float adaptationSpeedFactor = (currentAvgLuminance <= previousAvgLuminance) ? eyeAdaptationSpeedFactor.x: eyeAdaptationSpeedFactor.y;

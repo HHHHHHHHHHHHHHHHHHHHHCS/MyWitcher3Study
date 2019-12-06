@@ -24,18 +24,20 @@ public class MyPostProcessingStack : ScriptableObject
 
     private static Mesh fullScreenTriangle;
 
-    private static Material mainMat, toneMappingMat;
+    private static Material mainMat, toneMappingMat, chromaticAberrationMat;
 
-
-    private static int mainTexID = Shader.PropertyToID("_MainTex");
-    private static int tempTexID = Shader.PropertyToID("_MyPostProcessingStackTempTex");
-    private static int temp1TexID = Shader.PropertyToID("_MyPostProcessingStackTemp1Tex");
-    private static int depthID = Shader.PropertyToID("_DepthTex");
+    private static int tempTexID = Shader.PropertyToID("tempTex");
+    private static int temp1TexID = Shader.PropertyToID("temp1Tex");
     private static int resolvedTexID = Shader.PropertyToID("_MyPostProcessingStackResolvedTex");
 
+    private static int mainTexID = Shader.PropertyToID("_MainTex");
+    private static int depthID = Shader.PropertyToID("_DepthTex");
+
+    private static int avgLuminanceTexRTID = Shader.PropertyToID("avgLuminanceTexRT");
+    private static int eyeAdaptationEndRT = Shader.PropertyToID("eyeAdaptationEndRT");
     private static int eyeAdaptationSpeedFactorID = Shader.PropertyToID("eyeAdaptationSpeedFactor");
-    private static int previousAvgLuminanceTex = Shader.PropertyToID("_PreviousAvgLuminanceTex");
-    private static int currentAvgLuminanceTex = Shader.PropertyToID("_CurrentAvgLuminanceTex");
+    private static int previousAvgLuminanceTexID = Shader.PropertyToID("_PreviousAvgLuminanceTex");
+    private static int currentAvgLuminanceTexID = Shader.PropertyToID("_CurrentAvgLuminanceTex");
 
     private static int luminClampID = Shader.PropertyToID("luminClamp");
     private static int curveABCID = Shader.PropertyToID("curveABC");
@@ -44,12 +46,18 @@ public class MyPostProcessingStack : ScriptableObject
     private static int hdrColorTexID = Shader.PropertyToID("_HDRColorTex");
     private static int avgLuminanceTexID = Shader.PropertyToID("_AvgLuminanceTex");
 
+    //-------------------------
+
+
+    //深度处理
+    [SerializeField] private bool depthStripes;
+
+    //-------------------------
+
 
     //模糊强度
     [SerializeField, Range(0, 10)] private int blurStrength;
 
-    //深度处理
-    [SerializeField] private bool depthStripes;
 
     //-------------------------
 
@@ -79,9 +87,14 @@ public class MyPostProcessingStack : ScriptableObject
     //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
     [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f, 1.50f, 0.5f);
 
+    //-------------------------
+
+    //色差偏移
+    [Space(10f), Header("ChromaticAberration"), SerializeField]
+    private bool chromaticAberration;
+
+
     private RenderTexture eyeAdaptationPreRT;
-    private RenderTexture eyeAdaptationEndRT;
-    private RenderTexture avgLuminanceTexRT;
 
 
     public bool NeedsDepth => depthStripes;
@@ -117,6 +130,12 @@ public class MyPostProcessingStack : ScriptableObject
             name = "My Tonemapping Material",
             hideFlags = HideFlags.HideAndDontSave
         };
+//
+//        chromaticAberrationMat = new Material(Shader.Find("Hidden/My Pipeline/ChromaticAberration"))
+//        {
+//            name = "My ChromaticAberration Material",
+//            hideFlags = HideFlags.HideAndDontSave
+//        };
     }
 
     public void RenderAfterOpaque(CommandBuffer cb, int cameraColorID, int cameraDepthID, int width, int height,
@@ -133,51 +152,52 @@ public class MyPostProcessingStack : ScriptableObject
     public void RenderAfterTransparent(CommandBuffer cb, int cameraColorID, int cameraDepthID, int width, int height,
         int samples, RenderTextureFormat format)
     {
+        cb.GetTemporaryRT(resolvedTexID, width, height, 0, FilterMode.Bilinear, format);
+
+        int nowRTID = cameraColorID;
+
+        //Blur
         if (blurStrength > 0)
         {
-            if (toneMapping || samples > 1)
-            {
-                cb.GetTemporaryRT(resolvedTexID, width, height, 0, FilterMode.Bilinear, format);
-                if (toneMapping)
-                {
-                    ToneMapping(cb, cameraColorID, resolvedTexID, width, height, format);
-                }
-                else
-                {
-                    if (eyeAdaptationPreRT)
-                    {
-                        DestroyImmediate(eyeAdaptationPreRT);
-                    }
-
-                    if (eyeAdaptationEndRT)
-                    {
-                        DestroyImmediate(eyeAdaptationEndRT);
-                    }
-
-                    if (avgLuminanceTexRT)
-                    {
-                        DestroyImmediate(avgLuminanceTexRT);
-                    }
-
-                    Blit(cb, cameraColorID, resolvedTexID);
-                }
-
-                Blur(cb, resolvedTexID, width, height);
-                cb.ReleaseTemporaryRT(resolvedTexID);
-            }
-            else
-            {
-                Blur(cb, cameraColorID, width, height);
-            }
+            Blur(cb, nowRTID, resolvedTexID, width, height, format);
+            nowRTID = resolvedTexID;
         }
-        else if (toneMapping)
+
+        //ToneMapping
+        if (toneMapping)
         {
-            ToneMapping(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, width, height, format);
+            if (!eyeAdaptation)
+            {
+                if (eyeAdaptationPreRT)
+                {
+                    DestroyImmediate(eyeAdaptationPreRT);
+                }
+            }
+
+            int endRTID = nowRTID == cameraColorID ? resolvedTexID : cameraColorID;
+            ToneMapping(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
         }
         else
         {
-            Blit(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget);
+            if (eyeAdaptationPreRT)
+            {
+                DestroyImmediate(eyeAdaptationPreRT);
+            }
         }
+
+        //TODO:chromaticAberration
+
+        //MSAA
+        if (samples > 1)
+        {
+            Blit(cb, nowRTID, cameraColorID);
+            nowRTID = cameraColorID;
+        }
+
+
+        Blit(cb, nowRTID, BuiltinRenderTextureType.CameraTarget);
+        cb.ReleaseTemporaryRT(resolvedTexID);
     }
 
     private void Blit(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID,
@@ -202,41 +222,6 @@ public class MyPostProcessingStack : ScriptableObject
         cb.DrawMesh(fullScreenTriangle, Matrix4x4.identity, mat, 0, (int) pass);
     }
 
-    private void Blur(CommandBuffer cb, int cameraColorID, int width, int height)
-    {
-        cb.BeginSample("Blur");
-
-        if (blurStrength == 1)
-        {
-            Blit(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, MainPass.Blur);
-            cb.EndSample("Blur");
-            return;
-        }
-
-        cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear);
-        int passesLeft;
-
-        for (passesLeft = blurStrength; passesLeft > 2; passesLeft -= 2)
-        {
-            Blit(cb, cameraColorID, tempTexID, MainPass.Blur);
-            Blit(cb, tempTexID, cameraColorID, MainPass.Blur);
-        }
-
-        if (passesLeft > 1)
-        {
-            Blit(cb, cameraColorID, tempTexID, MainPass.Blur);
-            Blit(cb, tempTexID, BuiltinRenderTextureType.CameraTarget, MainPass.Blur);
-        }
-        else
-        {
-            Blit(cb, cameraColorID, BuiltinRenderTextureType.CameraTarget, MainPass.Blur);
-        }
-
-        cb.ReleaseTemporaryRT(tempTexID);
-
-        cb.EndSample("Blur");
-    }
-
     private void DepthStripes(CommandBuffer cb, int cameraColorID, int cameraDepthID,
         int width, int height, RenderTextureFormat format)
     {
@@ -251,22 +236,70 @@ public class MyPostProcessingStack : ScriptableObject
         cb.EndSample("Depth Stripes");
     }
 
+    private void Blur(CommandBuffer cb, int srcID, int destID, int width, int height, RenderTextureFormat format)
+    {
+        cb.BeginSample("Blur");
+
+        if (blurStrength == 1)
+        {
+            Blit(cb, srcID, destID, MainPass.Blur);
+            cb.EndSample("Blur");
+            return;
+        }
+
+        cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
+
+        int _tempID = srcID;
+        int passesLeft = blurStrength;
+
+        if (blurStrength > 2)
+        {
+            cb.GetTemporaryRT(temp1TexID, width, height, 0, FilterMode.Bilinear, format);
+        }
+
+        for (; passesLeft > 2; passesLeft -= 2)
+        {
+            Blit(cb, _tempID, tempTexID, MainPass.Blur);
+            _tempID = temp1TexID;
+            Blit(cb, tempTexID, _tempID, MainPass.Blur);
+        }
+
+        if (passesLeft > 1)
+        {
+            Blit(cb, _tempID, tempTexID, MainPass.Blur);
+            Blit(cb, tempTexID, destID, MainPass.Blur);
+        }
+        else
+        {
+            Blit(cb, _tempID, destID, MainPass.Blur);
+        }
+
+        cb.ReleaseTemporaryRT(tempTexID);
+        if (blurStrength > 2)
+        {
+            cb.ReleaseTemporaryRT(temp1TexID);
+        }
+
+        cb.EndSample("Blur");
+    }
+
     private void ToneMapping(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
         , int width, int height, RenderTextureFormat format)
     {
         cb.BeginSample("Tone Mapping");
 
+        //AvgLuminance==========================================
+
+        cb.BeginSample("AvgLuminance");
+
+
         int max = Mathf.Max(width, height);
 
         int iterator = (int) (Mathf.Log(max, 2));
 
-        if (avgLuminanceTexRT == null)
-        {
-            avgLuminanceTexRT = new RenderTexture(1, 1, 0, format)
-            {
-                name = "avgLuminanceTexRT"
-            };
-        }
+        int endID = 0;
+
+        cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, format);
 
         if (iterator > 0)
         {
@@ -295,64 +328,94 @@ public class MyPostProcessingStack : ScriptableObject
             }
 
             //int endID = ((iterator - 1) & 1) == 0 ? tempTexID : temp1TexID;
-            int endID = (iterator & 1) == 0 ? temp1TexID : tempTexID;
-            Blit(cb, endID, avgLuminanceTexRT, MainPass.Luminance);
-            cb.ReleaseTemporaryRT(endID);
+            endID = (iterator & 1) == 0 ? temp1TexID : tempTexID;
+            Blit(cb, endID, avgLuminanceTexRTID, MainPass.Luminance);
         }
         else
         {
-            Blit(cb, srcID, avgLuminanceTexRT, MainPass.Luminance);
+            Blit(cb, srcID, avgLuminanceTexRTID, MainPass.Luminance);
         }
+
+        cb.EndSample("AvgLuminance");
+
+
+        //EyeAdaptation==========================================
+
+        cb.BeginSample("EyeAdaptation");
 
         if (eyeAdaptation)
         {
+            cb.GetTemporaryRT(eyeAdaptationEndRT, 1, 1, 0, FilterMode.Bilinear, format);
+
             if (eyeAdaptationPreRT == null)
             {
                 eyeAdaptationPreRT = new RenderTexture(1, 1, 0, format)
                 {
                     name = "eyeAdaptationPreRT"
                 };
-
-                eyeAdaptationEndRT = new RenderTexture(1, 1, 0, format)
-                {
-                    name = "eyeAdaptationEndRT"
-                };
             }
 
             cb.SetGlobalVector(eyeAdaptationSpeedFactorID, eyeAdaptationSpeed);
-            cb.SetGlobalTexture(previousAvgLuminanceTex, eyeAdaptationPreRT);
-            cb.SetGlobalTexture(currentAvgLuminanceTex, avgLuminanceTexRT);
+            cb.SetGlobalTexture(previousAvgLuminanceTexID, eyeAdaptationPreRT);
+            cb.SetGlobalTexture(currentAvgLuminanceTexID, avgLuminanceTexRTID);
 
 
-            Blit(cb, avgLuminanceTexRT, eyeAdaptationEndRT, toneMappingMat, (int) ToneMappingEnum.EyeAdaptation);
+            Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat, (int) ToneMappingEnum.EyeAdaptation);
             Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
+
+            cb.ReleaseTemporaryRT(eyeAdaptationEndRT);
         }
         else
         {
-            if (avgLuminanceTexRT)
+            if (eyeAdaptationPreRT)
             {
-                DestroyImmediate(avgLuminanceTexRT);
-            }
-
-            if (eyeAdaptationEndRT)
-            {
-                DestroyImmediate(eyeAdaptationEndRT);
+                DestroyImmediate(eyeAdaptationPreRT);
             }
         }
+
+        cb.EndSample("EyeAdaptation");
+
+
+        //ToneMapping==========================================
+
+        cb.BeginSample("ToneMapping");
+
 
         cb.SetGlobalVector(luminClampID, tmluminanceClamp);
         cb.SetGlobalVector(curveABCID, tmCurveABC);
         cb.SetGlobalVector(curveDEFID, tmcurveDEF);
         cb.SetGlobalVector(customDataID, tmCustomData);
         cb.SetGlobalTexture(hdrColorTexID, srcID);
-        cb.SetGlobalTexture(avgLuminanceTexID, eyeAdaptation ? eyeAdaptationEndRT : avgLuminanceTexRT);
-
+        if (eyeAdaptation)
+        {
+            cb.SetGlobalTexture(avgLuminanceTexID, eyeAdaptationPreRT);
+        }
+        else
+        {
+            cb.SetGlobalTexture(avgLuminanceTexID, avgLuminanceTexRTID);
+        }
 
         Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
 
-        cb.ReleaseTemporaryRT(avgLuminanceTexID);
+        cb.EndSample("ToneMapping");
 
+        if (iterator > 0)
+        {
+            cb.ReleaseTemporaryRT(endID);
+        }
+
+        cb.ReleaseTemporaryRT(avgLuminanceTexRTID);
 
         cb.EndSample("Tone Mapping");
+    }
+
+    private void ChromaticAberration(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , int width, int height, RenderTexture format)
+    {
+        cb.BeginSample("Chromatic Aberration");
+
+        Blit(cb, srcID, destID, chromaticAberrationMat);
+
+        cb.EndSample("Chromatic Aberration");
     }
 }

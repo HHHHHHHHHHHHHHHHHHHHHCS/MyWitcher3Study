@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a02d8d8def614b449dc3da8b1717c5c, type: 3}
   m_Name: My Post Processing Stack 1
   m_EditorClassIdentifier: 
-  blurStrength: 0
   depthStripes: 0
+  blurStrength: 0
   eyeAdaptation: 1
   eyeAdaptationSpeed: {x: 0.05, y: 0.05}
   toneMapping: 1
@@ -21,3 +21,4 @@ MonoBehaviour:
   tmCurveABC: {x: 0.25, y: 0.306, z: 0.99}
   tmcurveDEF: {x: 0.35, y: 0.025, z: 0.4}
   tmCustomData: {x: 0.245, y: 1.5, z: 0.75}
+  chromaticAberration: 0
