@@ -17,7 +17,7 @@
 			
 			#pragma target 3.5
 			
-			#pragma vertex TonemappingVert
+			#pragma vertex DefaultVert
 			#pragma fragment EyeAdaptationFrag
 			
 			ENDHLSL
@@ -29,7 +29,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			#pragma vertex TonemappingVert
+			#pragma vertex DefaultVert
 			#pragma fragment TonemappingSimpleFrag
 			
 			ENDHLSL
@@ -42,7 +42,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			#pragma vertex TonemappingVert
+			#pragma vertex DefaultVert
 			#pragma fragment TonemappingLerpFrag
 			
 			ENDHLSL

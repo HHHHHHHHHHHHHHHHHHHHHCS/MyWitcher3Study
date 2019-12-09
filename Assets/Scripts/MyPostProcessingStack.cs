@@ -28,7 +28,9 @@ public class MyPostProcessingStack : ScriptableObject
 
     private static int tempTexID = Shader.PropertyToID("tempTex");
     private static int temp1TexID = Shader.PropertyToID("temp1Tex");
-    private static int resolvedTexID = Shader.PropertyToID("_MyPostProcessingStackResolvedTex");
+    private static int resolved1TexID = Shader.PropertyToID("_MyPostProcessingStackResolved1Tex");
+    private static int resolved2TexID = Shader.PropertyToID("_MyPostProcessingStackResolved2Tex");
+
 
     private static int mainTexID = Shader.PropertyToID("_MainTex");
     private static int depthID = Shader.PropertyToID("_DepthTex");
@@ -130,12 +132,12 @@ public class MyPostProcessingStack : ScriptableObject
             name = "My Tonemapping Material",
             hideFlags = HideFlags.HideAndDontSave
         };
-//
-//        chromaticAberrationMat = new Material(Shader.Find("Hidden/My Pipeline/ChromaticAberration"))
-//        {
-//            name = "My ChromaticAberration Material",
-//            hideFlags = HideFlags.HideAndDontSave
-//        };
+
+        chromaticAberrationMat = new Material(Shader.Find("Hidden/My Pipeline/ChromaticAberration"))
+        {
+            name = "My ChromaticAberration Material",
+            hideFlags = HideFlags.HideAndDontSave
+        };
     }
 
     public void RenderAfterOpaque(CommandBuffer cb, int cameraColorID, int cameraDepthID, int width, int height,
@@ -152,15 +154,18 @@ public class MyPostProcessingStack : ScriptableObject
     public void RenderAfterTransparent(CommandBuffer cb, int cameraColorID, int cameraDepthID, int width, int height,
         int samples, RenderTextureFormat format)
     {
-        cb.GetTemporaryRT(resolvedTexID, width, height, 0, FilterMode.Bilinear, format);
+        cb.GetTemporaryRT(resolved1TexID, width, height, 0, FilterMode.Bilinear, format);
+        cb.GetTemporaryRT(resolved2TexID, width, height, 0, FilterMode.Bilinear, format);
+
 
         int nowRTID = cameraColorID;
 
         //Blur
         if (blurStrength > 0)
         {
-            Blur(cb, nowRTID, resolvedTexID, width, height, format);
-            nowRTID = resolvedTexID;
+            int endRTID = nowRTID == cameraColorID|| nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            Blur(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
         }
 
         //ToneMapping
@@ -174,7 +179,7 @@ public class MyPostProcessingStack : ScriptableObject
                 }
             }
 
-            int endRTID = nowRTID == cameraColorID ? resolvedTexID : cameraColorID;
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
             ToneMapping(cb, nowRTID, endRTID, width, height, format);
             nowRTID = endRTID;
         }
@@ -186,10 +191,16 @@ public class MyPostProcessingStack : ScriptableObject
             }
         }
 
-        //TODO:chromaticAberration
+        //Chromatic Aberration
+        if (chromaticAberration)
+        {
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            ChromaticAberration(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
+        }
 
         //MSAA
-        if (samples > 1)
+        if (samples > 1&& nowRTID != cameraColorID)
         {
             Blit(cb, nowRTID, cameraColorID);
             nowRTID = cameraColorID;
@@ -197,7 +208,9 @@ public class MyPostProcessingStack : ScriptableObject
 
 
         Blit(cb, nowRTID, BuiltinRenderTextureType.CameraTarget);
-        cb.ReleaseTemporaryRT(resolvedTexID);
+
+        cb.ReleaseTemporaryRT(resolved1TexID);
+        cb.ReleaseTemporaryRT(resolved2TexID);
     }
 
     private void Blit(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID,
@@ -414,7 +427,7 @@ public class MyPostProcessingStack : ScriptableObject
     }
 
     private void ChromaticAberration(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
-        , int width, int height, RenderTexture format)
+        , int width, int height, RenderTextureFormat format)
     {
         cb.BeginSample("Chromatic Aberration");
 

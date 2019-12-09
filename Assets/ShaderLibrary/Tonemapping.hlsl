@@ -2,9 +2,7 @@
 	#define MYRP_TONEMAPPING_INCLUDED
 	
 	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-	
-	//SetupCameraProperties() 传入 _ProjectionParams 和 _ZBufferParams
-	float4 _ProjectionParams;
+	#include "PPSBase.hlsl"
 
 	CBUFFER_START(MyEyeAdaptation)
 	//.x/y 下降/上升的渐变速度
@@ -56,17 +54,6 @@
 	TEXTURE2D(_CurrentAvgLuminanceTex);
 	SAMPLER(sampler_CurrentAvgLuminanceTex);
 	
-	struct VertexInput
-	{
-		float4 pos: POSITION;
-	};
-	
-	struct VertexOutput
-	{
-		float4 clipPos: SV_POSITION;
-		float2 uv: TEXCOORD0;
-	};
-	
 	float3 U2Func(float A, float B, float C, float D, float E, float F, float3 color)
 	{
 		//比例缩放 - 阀值
@@ -100,24 +87,7 @@
 		float exposure = middleGray / (luma * scaledWhitePoint);
 		return exposure;
 	}
-	
-	VertexOutput TonemappingVert(VertexInput input)
-	{
-		VertexOutput output;
-		output.clipPos = float4(input.pos.x, input.pos.y, 0.0, 1.0);
-		output.uv = input.pos.xy * 0.5 + 0.5;
-		
-		//当不使用 OpenGL 时，场景视图窗口和小型相机预览将被翻转
-		//检查 ProjectionParams 向量的 x 组件来检测翻转是否发生
-		//SetupCameraProperties 会设置 ProjectionParams
-		if (_ProjectionParams.x < 0.0)
-		{
-			output.uv.y = 1.0 - output.uv.y;
-		}
-		
-		return output;
-	}
-	
+
 	float4 EyeAdaptationFrag(VertexOutput i): SV_TARGET
 	{
 		float previousAvgLuminance = _PreviousAvgLuminanceTex.SampleLevel(sampler_PreviousAvgLuminanceTex, float2(0.5, 0.5), 0).r;

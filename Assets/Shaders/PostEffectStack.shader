@@ -16,7 +16,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			#pragma vertex DefaultPassVertex
+			#pragma vertex DefaultVert
 			#pragma fragment CopyPassFragment
 			
 			ENDHLSL
@@ -29,7 +29,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			#pragma vertex DefaultPassVertex
+			#pragma vertex DefaultVert
 			#pragma fragment BlurPassFragment
 			
 			ENDHLSL
@@ -42,7 +42,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			#pragma vertex DefaultPassVertex
+			#pragma vertex DefaultVert
 			#pragma fragment DepthStripesPassFragment
 			
 			ENDHLSL
@@ -56,7 +56,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			#pragma vertex DefaultPassVertex
+			#pragma vertex DefaultVert
 			#pragma fragment ToneMappingPassFragment
 			
 			ENDHLSL
@@ -70,7 +70,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			#pragma vertex DefaultPassVertex
+			#pragma vertex DefaultVert
 			#pragma fragment LuminancePassFragment
 			
 			ENDHLSL
