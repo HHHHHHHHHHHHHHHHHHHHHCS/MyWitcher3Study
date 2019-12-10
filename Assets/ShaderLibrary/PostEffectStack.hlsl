@@ -4,7 +4,6 @@
 	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 	#include "PPSBase.hlsl"
 	
-	float4 _ZBufferParams;
 	float _ReinhardModifier;
 	
 	TEXTURE2D(_CameraColorTexture);

@@ -3,6 +3,10 @@
 	
 	//SetupCameraProperties() 传入 _ProjectionParams 和 _ZBufferParams
 	float4 _ProjectionParams;
+	float4 _ZBufferParams;
+	//x y  screenSize   z w 1+1/size
+	float4 _ScreenParams;
+
 	
 	struct VertexInput
 	{

@@ -163,7 +163,7 @@ public class MyPostProcessingStack : ScriptableObject
         //Blur
         if (blurStrength > 0)
         {
-            int endRTID = nowRTID == cameraColorID|| nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
             Blur(cb, nowRTID, endRTID, width, height, format);
             nowRTID = endRTID;
         }
@@ -200,7 +200,7 @@ public class MyPostProcessingStack : ScriptableObject
         }
 
         //MSAA
-        if (samples > 1&& nowRTID != cameraColorID)
+        if (samples > 1 && nowRTID != cameraColorID)
         {
             Blit(cb, nowRTID, cameraColorID);
             nowRTID = cameraColorID;
@@ -349,7 +349,7 @@ public class MyPostProcessingStack : ScriptableObject
         {
             Blit(cb, srcID, avgLuminanceTexRTID, MainPass.Luminance);
         }
-        
+
         cb.EndSample("AvgLuminance");
 
 
@@ -359,7 +359,6 @@ public class MyPostProcessingStack : ScriptableObject
 
         if (eyeAdaptation)
         {
-
             if (eyeAdaptationPreRT == null)
             {
                 eyeAdaptationPreRT = new RenderTexture(1, 1, 0, format)
@@ -368,7 +367,6 @@ public class MyPostProcessingStack : ScriptableObject
                 };
 
                 Blit(cb, avgLuminanceTexRTID, eyeAdaptationPreRT);
-
             }
             else
             {
@@ -380,12 +378,11 @@ public class MyPostProcessingStack : ScriptableObject
                 cb.SetGlobalTexture(currentAvgLuminanceTexID, avgLuminanceTexRTID);
 
 
-                Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat, (int)ToneMappingEnum.EyeAdaptation);
+                Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat, (int) ToneMappingEnum.EyeAdaptation);
                 Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
 
                 cb.ReleaseTemporaryRT(eyeAdaptationEndRT);
             }
-
         }
         else
         {
