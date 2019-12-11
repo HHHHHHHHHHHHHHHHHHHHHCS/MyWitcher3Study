@@ -22,3 +22,8 @@ MonoBehaviour:
   tmcurveDEF: {x: 0.35, y: 0.025, z: 0.4}
   tmCustomData: {x: 0.245, y: 1.5, z: 0.75}
   chromaticAberration: 1
+  caCenter: {x: 0.5, y: 0.5}
+  caCenterDistanceThreshold: 0.2
+  caFA: 1.25
+  caIntensity: 1
+  caDistortSize: 0.75

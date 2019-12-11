@@ -3,6 +3,11 @@
 	
 	#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 	#include "PPSBase.hlsl"
+
+	CBUFFER_START(MyChromaticAberration)
+	float2 caCenter;
+	float4 caCustomData;
+	CBUFFER_END
 	
 	TEXTURE2D(_MainTex);
 	SAMPLER(sampler_MainTex);
@@ -10,11 +15,11 @@
 	float4 ChromaticAberrationPassFragment(VertexOutput input): SV_TARGET
 	{
 		//User Data
-		float2 center = float2(0.5, 0.5);
-		float centerDistanceThreshold = 0.2;
-		float fa = 1.25;
-		float intensity = 30;
-		float distortSize = 0.75;
+		float2 center = caCenter;
+		float centerDistanceThreshold = caCustomData.x;
+		float fa = caCustomData.y;
+		float intensity = caCustomData.z;
+		float distortSize = caCustomData.w;
 		
 		//Calculate Vector
 		float2 offset = input.uv - center;

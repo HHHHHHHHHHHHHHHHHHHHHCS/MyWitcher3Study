@@ -48,6 +48,9 @@ public class MyPostProcessingStack : ScriptableObject
     private static int hdrColorTexID = Shader.PropertyToID("_HDRColorTex");
     private static int avgLuminanceTexID = Shader.PropertyToID("_AvgLuminanceTex");
 
+    private static int caCenterID = Shader.PropertyToID("caCenter");
+    private static int caCustomDataID = Shader.PropertyToID("caCustomData");
+
     //-------------------------
 
 
@@ -94,6 +97,21 @@ public class MyPostProcessingStack : ScriptableObject
     //色差偏移
     [Space(10f), Header("ChromaticAberration"), SerializeField]
     private bool chromaticAberration;
+
+    //色差偏移 中心点
+    [SerializeField] private Vector2 caCenter = new Vector2(0.5f,0.5f);
+
+    //色差偏移 距离阀值
+    [SerializeField] private float caCenterDistanceThreshold = 0.2f;
+
+    //色差偏移 距离强度
+    [SerializeField] private float caFA = 1.25f;
+
+    //色差偏移 偏移强度
+    [SerializeField] private float caIntensity = 30f;
+
+    //色差偏移 偏移扰动尺寸
+    [SerializeField] private float caDistortSize = 0.75f;
 
 
     private RenderTexture eyeAdaptationPreRT;
@@ -427,6 +445,9 @@ public class MyPostProcessingStack : ScriptableObject
         , int width, int height, RenderTextureFormat format)
     {
         cb.BeginSample("Chromatic Aberration");
+
+        cb.SetGlobalVector(caCenterID, caCenter);
+        cb.SetGlobalVector(caCustomDataID, new Vector4(caCenterDistanceThreshold, caFA, caIntensity, caDistortSize));
 
         Blit(cb, srcID, destID, chromaticAberrationMat);
 
