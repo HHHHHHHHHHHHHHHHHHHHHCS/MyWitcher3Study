@@ -18,7 +18,7 @@
 			#pragma target 3.5
 			
 			#pragma vertex DefaultVert
-			#pragma fragment EyeAdaptationFrag
+			#pragma fragment EyeAdaptationPassFrag
 			
 			ENDHLSL
 		}
@@ -30,7 +30,7 @@
 			
 			#pragma target 3.5
 			#pragma vertex DefaultVert
-			#pragma fragment TonemappingSimpleFrag
+			#pragma fragment TonemappingSimplePassFrag
 			
 			ENDHLSL
 			
@@ -43,7 +43,7 @@
 			
 			#pragma target 3.5
 			#pragma vertex DefaultVert
-			#pragma fragment TonemappingLerpFrag
+			#pragma fragment TonemappingLerpPassFrag
 			
 			ENDHLSL
 			

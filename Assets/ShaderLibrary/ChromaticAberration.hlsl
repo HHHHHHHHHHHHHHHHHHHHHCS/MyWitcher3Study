@@ -30,7 +30,7 @@
 		float offsetLengthFixed = offsetLength - centerDistanceThreshold;
 		float texel = saturate(offsetLengthFixed * fa);
 		
-		float4 color = _MainTex.SampleLevel(sampler_MainTex, input.uv, 0);;
+		float4 color = _MainTex.SampleLevel(sampler_MainTex, input.uv, 0);
 		float apply = (0.0 < texel);
 		if (apply)
 		{

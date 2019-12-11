@@ -88,7 +88,7 @@
 		return exposure;
 	}
 
-	float4 EyeAdaptationFrag(VertexOutput i): SV_TARGET
+	float4 EyeAdaptationPassFrag(VertexOutput i): SV_TARGET
 	{
 		float previousAvgLuminance = _PreviousAvgLuminanceTex.SampleLevel(sampler_PreviousAvgLuminanceTex, float2(0.5, 0.5), 0).r;
 		float currentAvgLuminance = _CurrentAvgLuminanceTex.SampleLevel(sampler_CurrentAvgLuminanceTex, float2(0.5, 0.5), 0).r;
@@ -102,7 +102,7 @@
 		return adaptedLuminance;
 	}
 	
-	float4 TonemappingSimpleFrag(VertexOutput input): SV_TARGET
+	float4 TonemappingSimplePassFrag(VertexOutput input): SV_TARGET
 	{
 		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5)).r;
 		
@@ -126,7 +126,7 @@
 		return float4(color, 1);
 	}
 	
-	float4 TonemappingLerpFrag(VertexOutput input): SV_TARGET
+	float4 TonemappingLerpPassFrag(VertexOutput input): SV_TARGET
 	{
 		float avgLuminance = SAMPLE_TEXTURE2D(_AvgLuminanceTex, sampler_AvgLuminanceTex, float2(0.5, 0.5)).r;
 		

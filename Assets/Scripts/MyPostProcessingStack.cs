@@ -24,7 +24,7 @@ public class MyPostProcessingStack : ScriptableObject
 
     private static Mesh fullScreenTriangle;
 
-    private static Material mainMat, toneMappingMat, chromaticAberrationMat;
+    private static Material mainMat, toneMappingMat, chromaticAberrationMat, vignetteMat;
 
     private static int tempTexID = Shader.PropertyToID("tempTex");
     private static int temp1TexID = Shader.PropertyToID("temp1Tex");
@@ -47,6 +47,13 @@ public class MyPostProcessingStack : ScriptableObject
     private static int customDataID = Shader.PropertyToID("customData");
     private static int hdrColorTexID = Shader.PropertyToID("_HDRColorTex");
     private static int avgLuminanceTexID = Shader.PropertyToID("_AvgLuminanceTex");
+
+    private static int vignetteIntensityID = Shader.PropertyToID("vignetteIntensity");
+    private static int vignetteSimpleThresholdID = Shader.PropertyToID("vignetteSimpleThreshold");
+    private static int vignetteComplexWeightsID = Shader.PropertyToID("vignetteComplexWeights");
+    private static int vignetteComplexDarkColorID = Shader.PropertyToID("vignetteComplexDarkColor");
+    private static int vignetteComplexMaskID = Shader.PropertyToID("vignetteComplexMask");
+
 
     private static int caCenterID = Shader.PropertyToID("caCenter");
     private static int caCustomDataID = Shader.PropertyToID("caCustomData");
@@ -94,12 +101,35 @@ public class MyPostProcessingStack : ScriptableObject
 
     //-------------------------
 
+    //暗角
+    [Space(10f), Header("Vignette"), SerializeField]
+    private bool vignette;
+
+    //暗角强度
+    [SerializeField] private float vignetteIntensity = 0.75f;
+
+    //暗角 简单模式下 阀值
+    [SerializeField] private float vignetteSimpleThreshold = 0.55f;
+
+    //暗角 复杂模式下 颜色权重
+    [SerializeField] private Vector3 vignetteComplexWeights = new Vector3(0.98f, 0.98f, 0.98f);
+
+    //暗角 复杂模式下 黑暗的颜色
+    [SerializeField, ColorUsage(false)]
+    private Color vignetteComplexDarkColor = new Color(3f / 255, 4f / 255, 5f / 255);
+
+    //暗角 复杂模式下 颜色遮罩
+    [SerializeField] private Texture2D vignetteComplexMask = null;
+
+    //-------------------------
+
+
     //色差偏移
     [Space(10f), Header("ChromaticAberration"), SerializeField]
     private bool chromaticAberration;
 
     //色差偏移 中心点
-    [SerializeField] private Vector2 caCenter = new Vector2(0.5f,0.5f);
+    [SerializeField] private Vector2 caCenter = new Vector2(0.5f, 0.5f);
 
     //色差偏移 距离阀值
     [SerializeField] private float caCenterDistanceThreshold = 0.2f;
@@ -156,6 +186,12 @@ public class MyPostProcessingStack : ScriptableObject
             name = "My ChromaticAberration Material",
             hideFlags = HideFlags.HideAndDontSave
         };
+
+        vignetteMat = new Material(Shader.Find("Hidden/My Pipeline/Vignette"))
+        {
+            name = "My Vignette Material",
+            hideFlags = HideFlags.HideAndDontSave
+        };
     }
 
     public void RenderAfterOpaque(CommandBuffer cb, int cameraColorID, int cameraDepthID, int width, int height,
@@ -207,6 +243,14 @@ public class MyPostProcessingStack : ScriptableObject
             {
                 DestroyImmediate(eyeAdaptationPreRT);
             }
+        }
+
+        //Vignette
+        if (vignette)
+        {
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            Vignette(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
         }
 
         //Chromatic Aberration
@@ -439,6 +483,22 @@ public class MyPostProcessingStack : ScriptableObject
         cb.ReleaseTemporaryRT(avgLuminanceTexRTID);
 
         cb.EndSample("Tone Mapping");
+    }
+
+    private void Vignette(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , int width, int height, RenderTextureFormat format)
+    {
+        cb.BeginSample("Vignette");
+
+        cb.SetGlobalFloat(vignetteIntensityID, vignetteIntensity);
+        cb.SetGlobalFloat(vignetteSimpleThresholdID, vignetteSimpleThreshold);
+        cb.SetGlobalVector(vignetteComplexWeightsID, vignetteComplexWeights);
+        cb.SetGlobalVector(vignetteComplexDarkColorID, vignetteComplexDarkColor);
+        cb.SetGlobalTexture(vignetteComplexMaskID, vignetteComplexMask);
+
+        Blit(cb, srcID, destID, vignetteMat);
+
+        cb.EndSample("Vignette");
     }
 
     private void ChromaticAberration(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
