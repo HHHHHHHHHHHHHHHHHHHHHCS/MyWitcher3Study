@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd195c54cf113424686d1b8130c20700, type: 3}
   m_Name: MyPipelineAsset
   m_EditorClassIdentifier: 
-  defaultStack: {fileID: 11400000, guid: 02b2858d3507301469b01b0a5b1efd64, type: 2}
+  defaultStack: {fileID: 11400000, guid: fe42ccdab8d058242879ba083a1ccbab, type: 2}
   dynamicBatching: 0
   instancing: 1
   ditherTexture: {fileID: 2800000, guid: 025083048d71e994d9d1a9a4a36ffb40, type: 3}
