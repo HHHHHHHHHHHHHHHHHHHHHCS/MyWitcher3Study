@@ -16,7 +16,7 @@ MonoBehaviour:
   dynamicBatching: 0
   instancing: 1
   ditherTexture: {fileID: 2800000, guid: 025083048d71e994d9d1a9a4a36ffb40, type: 3}
-  ditherAnimationSpeed: 10
+  ditherAnimationSpeed: 0
   supportLODCrossFading: 1
   shadowMapSize: 4096
   shadowDistance: 100

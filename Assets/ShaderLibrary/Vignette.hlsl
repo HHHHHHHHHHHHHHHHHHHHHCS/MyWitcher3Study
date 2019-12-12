@@ -8,7 +8,7 @@
 	float vignetteSimpleIntensity;
 	float vignetteSimpleThreshold;
 
-	float vignetteeComplexIntensity;
+	float vignetteComplexIntensity;
 	float3 vignetteComplexWeights;
 	float3 vignetteComplexDarkColor;
 	CBUFFER_END
@@ -26,7 +26,7 @@
 		float distanceFromCenter = length(input.uv - float2(0.5, 0.5));
 		
 		float x = distanceFromCenter * 2.0 - vignetteSimpleThreshold;
-		x = saturate(x * vignetteIntensity);
+		x = saturate(x * vignetteSimpleIntensity);
 		
 		float x2 = x * x;
 		float x3 = x2 * x;
@@ -46,12 +46,12 @@
 		
 		//calc weight
 		float vignetteWeight = dot(color.rgb, vignetteComplexWeights);
-		
-		//oneMinus and clamp[0-1]
-		vignetteWeight = saturate(1.0 - vignetteWeight);
+
+		//clamp[0-1]
+		vignetteWeight = saturate(vignetteWeight);
 		
 		//mul by opacity
-		vignetteWeight *= vignetteIntensity;
+		vignetteWeight *= vignetteComplexIntensity;
 		
 		//get Mask
 		float sampledVignetteMask = _VignetteComplexMaskTex.Sample(sampler_VignetteComplexMaskTex, input.uv).x;

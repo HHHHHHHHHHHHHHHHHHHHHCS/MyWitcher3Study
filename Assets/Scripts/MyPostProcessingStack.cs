@@ -22,6 +22,12 @@ public class MyPostProcessingStack : ScriptableObject
         ToneMappingLerp,
     }
 
+    private enum VignetteEnum
+    {
+        VignetteSimple = 0,
+        VignetteComplex,
+    }
+
     private static Mesh fullScreenTriangle;
 
     private static Material mainMat, toneMappingMat, chromaticAberrationMat, vignetteMat;
@@ -48,11 +54,12 @@ public class MyPostProcessingStack : ScriptableObject
     private static int hdrColorTexID = Shader.PropertyToID("_HDRColorTex");
     private static int avgLuminanceTexID = Shader.PropertyToID("_AvgLuminanceTex");
 
-    private static int vignetteIntensityID = Shader.PropertyToID("vignetteIntensity");
+    private static int vignetteSimpleIntensityID = Shader.PropertyToID("vignetteSimpleIntensity");
     private static int vignetteSimpleThresholdID = Shader.PropertyToID("vignetteSimpleThreshold");
+    private static int vignetteComplexIntensityID = Shader.PropertyToID("vignetteComplexIntensity");
     private static int vignetteComplexWeightsID = Shader.PropertyToID("vignetteComplexWeights");
     private static int vignetteComplexDarkColorID = Shader.PropertyToID("vignetteComplexDarkColor");
-    private static int vignetteComplexMaskID = Shader.PropertyToID("vignetteComplexMask");
+    private static int vignetteComplexMaskID = Shader.PropertyToID("_VignetteComplexMaskTex");
 
 
     private static int caCenterID = Shader.PropertyToID("caCenter");
@@ -105,11 +112,17 @@ public class MyPostProcessingStack : ScriptableObject
     [Space(10f), Header("Vignette"), SerializeField]
     private bool vignette;
 
-    //暗角强度
-    [SerializeField] private float vignetteIntensity = 0.75f;
+    //使用简单模式
+    [SerializeField] private bool simpleVignette = true;
+
+    //暗角 简单模式下 强度
+    [SerializeField] private float vignetteSimpleIntensity = 0.75f;
 
     //暗角 简单模式下 阀值
     [SerializeField] private float vignetteSimpleThreshold = 0.55f;
+
+    //暗角 复杂模式下 强度
+    [SerializeField] private float vignetteComplexIntensity = 0.8f;
 
     //暗角 复杂模式下 颜色权重
     [SerializeField] private Vector3 vignetteComplexWeights = new Vector3(0.98f, 0.98f, 0.98f);
@@ -490,13 +503,20 @@ public class MyPostProcessingStack : ScriptableObject
     {
         cb.BeginSample("Vignette");
 
-        cb.SetGlobalFloat(vignetteIntensityID, vignetteIntensity);
-        cb.SetGlobalFloat(vignetteSimpleThresholdID, vignetteSimpleThreshold);
-        cb.SetGlobalVector(vignetteComplexWeightsID, vignetteComplexWeights);
-        cb.SetGlobalVector(vignetteComplexDarkColorID, vignetteComplexDarkColor);
-        cb.SetGlobalTexture(vignetteComplexMaskID, vignetteComplexMask);
-
-        Blit(cb, srcID, destID, vignetteMat);
+        if (simpleVignette)
+        {
+            cb.SetGlobalFloat(vignetteSimpleIntensityID, vignetteSimpleIntensity);
+            cb.SetGlobalFloat(vignetteSimpleThresholdID, vignetteSimpleThreshold);
+            Blit(cb, srcID, destID, vignetteMat, (int) VignetteEnum.VignetteSimple);
+        }
+        else
+        {
+            cb.SetGlobalFloat(vignetteComplexIntensityID, vignetteComplexIntensity);
+            cb.SetGlobalVector(vignetteComplexWeightsID, vignetteComplexWeights);
+            cb.SetGlobalVector(vignetteComplexDarkColorID, vignetteComplexDarkColor);
+            cb.SetGlobalTexture(vignetteComplexMaskID, vignetteComplexMask);
+            Blit(cb, srcID, destID, vignetteMat, (int) VignetteEnum.VignetteComplex);
+        }
 
         cb.EndSample("Vignette");
     }
