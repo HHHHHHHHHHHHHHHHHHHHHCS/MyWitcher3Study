@@ -136,7 +136,6 @@ public class MyPostProcessingStack : ScriptableObject
 
     //-------------------------
 
-
     //色差偏移
     [Space(10f), Header("ChromaticAberration"), SerializeField]
     private bool chromaticAberration;
@@ -156,6 +155,23 @@ public class MyPostProcessingStack : ScriptableObject
     //色差偏移 偏移扰动尺寸
     [SerializeField] private float caDistortSize = 0.75f;
 
+    //-------------------------
+
+    //醉酒效果
+    [Space(10f), Header("DrunkEffect"), SerializeField]
+    private bool drunkEffect;
+
+    //醉酒的旋转像素的半径
+    [SerializeField] private float drunkRadius = 1.0f;
+
+    //醉酒的强度[0-1]
+    [SerializeField, Range(0, 1f)] private float drunkIntensity = 1.0f;
+
+    //醉酒的旋转速度
+    [SerializeField] private float drunkRotationSpeed = 0.05f;
+
+    //醉酒的中心点
+    [SerializeField]private  Vector2 drunkCenter = new Vector2(0.5f,0.5f);
 
     private RenderTexture eyeAdaptationPreRT;
 
@@ -522,6 +538,19 @@ public class MyPostProcessingStack : ScriptableObject
     }
 
     private void ChromaticAberration(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , int width, int height, RenderTextureFormat format)
+    {
+        cb.BeginSample("Chromatic Aberration");
+
+        cb.SetGlobalVector(caCenterID, caCenter);
+        cb.SetGlobalVector(caCustomDataID, new Vector4(caCenterDistanceThreshold, caFA, caIntensity, caDistortSize));
+
+        Blit(cb, srcID, destID, chromaticAberrationMat);
+
+        cb.EndSample("Chromatic Aberration");
+    }
+
+    private void DrunkEffect(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
         , int width, int height, RenderTextureFormat format)
     {
         cb.BeginSample("Chromatic Aberration");

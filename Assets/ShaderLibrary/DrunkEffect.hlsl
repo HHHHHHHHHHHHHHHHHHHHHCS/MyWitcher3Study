@@ -5,12 +5,8 @@
 	#include "PPSBase.hlsl"
 	
 	CBUFFER_START(MyDrunkEffect)
-	float4 cb0_v0;
-	float4 cb0_v1;
-	
-	float4 cb3_v0;
-	float4 cb3_v1;
-	float4 cb3_v2;
+	float3 drunkData;
+	float2 drunkCenter;
 	CBUFFER_END
 	
 	TEXTURE2D(_MainTex);
@@ -30,13 +26,13 @@
 	float4 DrunkEffectFragment(VertexOutput input): SV_TARGET
 	{
 		/* Inputs */
-		float rotationAroundPixelRadius = cb3_v0.x;
-		float drunkIntensity = cb3_v0.y;
+		float rotationAroundPixelRadius = drunkData.x;
+		float drunkIntensity = drunkData.y;
 		float2 texelSize = _ScreenParams.zw - 1.0;
-		float2 centerPoint = cb3_v2.xy;
+		float2 centerPoint = drunkCenter;
 		
-		float2 rotationSinCos = cb3_v1.xy;//    vec2 offsets = vec2( sin(iTime), cos(iTime) );
-		float rotationSpeed = 0.05;
+		float2 rotationSinCos = float2(sin(_Time.x),cos(_Time.y));
+		float rotationSpeed = drunkData.z;
 		float2 rotationDirection = rotationSinCos.xy * rotationSpeed;
 		
 		float2 pixelPosition = input.uv;
