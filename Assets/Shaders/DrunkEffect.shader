@@ -1,4 +1,4 @@
-﻿Shader "Hidden/My Pipeline/Drunk Effect"
+﻿Shader "Hidden/My Pipeline/DrunkEffect"
 {
 	SubShader
 	{

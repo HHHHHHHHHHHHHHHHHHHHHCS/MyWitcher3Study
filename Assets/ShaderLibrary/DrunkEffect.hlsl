@@ -64,7 +64,7 @@
 		float2 baseTexcoords0 = zoomedTexcoords + rotationOffsets;
 		float2 baseTexcoords1 = zoomedTexcoords - rotationOffsets;
 		
-		float rotationTexcoordsOffsetIntensity = intensityMask * rotationAroundPixelRadius.x;
+		float rotationTexcoordsOffsetIntensity = intensityMask * rotationAroundPixelRadius;
 		rotationTexcoordsOffsetIntensity *= 5.0;
 		
 		float2 rotationTexcoordsOffset = rotationTexcoordsOffsetIntensity * texelSize;

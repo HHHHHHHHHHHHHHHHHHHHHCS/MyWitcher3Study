@@ -30,13 +30,14 @@ public class MyPostProcessingStack : ScriptableObject
 
     private static Mesh fullScreenTriangle;
 
-    private static Material mainMat, toneMappingMat, chromaticAberrationMat, vignetteMat;
+    private static Material mainMat, toneMappingMat, chromaticAberrationMat, vignetteMat, drunkEffectMat;
 
     private static int tempTexID = Shader.PropertyToID("tempTex");
     private static int temp1TexID = Shader.PropertyToID("temp1Tex");
     private static int resolved1TexID = Shader.PropertyToID("_MyPostProcessingStackResolved1Tex");
     private static int resolved2TexID = Shader.PropertyToID("_MyPostProcessingStackResolved2Tex");
 
+    private static int timeID = Shader.PropertyToID("_Time");
 
     private static int mainTexID = Shader.PropertyToID("_MainTex");
     private static int depthID = Shader.PropertyToID("_DepthTex");
@@ -61,9 +62,11 @@ public class MyPostProcessingStack : ScriptableObject
     private static int vignetteComplexDarkColorID = Shader.PropertyToID("vignetteComplexDarkColor");
     private static int vignetteComplexMaskID = Shader.PropertyToID("_VignetteComplexMaskTex");
 
-
     private static int caCenterID = Shader.PropertyToID("caCenter");
     private static int caCustomDataID = Shader.PropertyToID("caCustomData");
+
+    private static int drunkDataID = Shader.PropertyToID("drunkData");
+    private static int drunkCenterID = Shader.PropertyToID("drunkCenter");
 
     //-------------------------
 
@@ -171,7 +174,7 @@ public class MyPostProcessingStack : ScriptableObject
     [SerializeField] private float drunkRotationSpeed = 0.05f;
 
     //醉酒的中心点
-    [SerializeField]private  Vector2 drunkCenter = new Vector2(0.5f,0.5f);
+    [SerializeField] private Vector2 drunkCenter = new Vector2(0.5f, 0.5f);
 
     private RenderTexture eyeAdaptationPreRT;
 
@@ -221,12 +224,21 @@ public class MyPostProcessingStack : ScriptableObject
             name = "My Vignette Material",
             hideFlags = HideFlags.HideAndDontSave
         };
+
+        drunkEffectMat = new Material(Shader.Find("Hidden/My Pipeline/DrunkEffect"))
+        {
+            name = "My DrunkEffect Material",
+            hideFlags = HideFlags.HideAndDontSave
+        };
     }
 
     public void RenderAfterOpaque(CommandBuffer cb, int cameraColorID, int cameraDepthID, int width, int height,
         int samples, RenderTextureFormat format)
     {
         InitializeStatic();
+
+        var time = Time.time;
+        cb.SetGlobalVector(timeID, new Vector4(time / 20, time, time * 2, time * 3));
 
         if (depthStripes)
         {
@@ -287,6 +299,14 @@ public class MyPostProcessingStack : ScriptableObject
         {
             int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
             ChromaticAberration(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
+        }
+
+        //Drunk Effect
+        if (drunkEffect)
+        {
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            DrunkEffect(cb, nowRTID, endRTID, width, height, format);
             nowRTID = endRTID;
         }
 
@@ -555,10 +575,10 @@ public class MyPostProcessingStack : ScriptableObject
     {
         cb.BeginSample("Chromatic Aberration");
 
-        cb.SetGlobalVector(caCenterID, caCenter);
-        cb.SetGlobalVector(caCustomDataID, new Vector4(caCenterDistanceThreshold, caFA, caIntensity, caDistortSize));
+        cb.SetGlobalVector(drunkDataID, new Vector3(drunkRadius, drunkIntensity, drunkRotationSpeed));
+        cb.SetGlobalVector(drunkCenterID, drunkCenter);
 
-        Blit(cb, srcID, destID, chromaticAberrationMat);
+        Blit(cb, srcID, destID, drunkEffectMat);
 
         cb.EndSample("Chromatic Aberration");
     }

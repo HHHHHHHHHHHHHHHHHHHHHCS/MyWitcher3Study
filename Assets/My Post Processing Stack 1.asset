@@ -35,3 +35,8 @@ MonoBehaviour:
   caFA: 1.25
   caIntensity: 1
   caDistortSize: 0.75
+  drunkEffect: 1
+  drunkRadius: 1
+  drunkIntensity: 0.5
+  drunkRotationSpeed: 0.075
+  drunkCenter: {x: 0.5, y: 0.5}
