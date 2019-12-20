@@ -37,8 +37,6 @@ public class MyPostProcessingStack : ScriptableObject
     private static int resolved1TexID = Shader.PropertyToID("_MyPostProcessingStackResolved1Tex");
     private static int resolved2TexID = Shader.PropertyToID("_MyPostProcessingStackResolved2Tex");
 
-    private static int timeID = Shader.PropertyToID("_Time");
-
     private static int mainTexID = Shader.PropertyToID("_MainTex");
     private static int depthID = Shader.PropertyToID("_DepthTex");
 
@@ -236,9 +234,6 @@ public class MyPostProcessingStack : ScriptableObject
         int samples, RenderTextureFormat format)
     {
         InitializeStatic();
-
-        var time = Time.time;
-        cb.SetGlobalVector(timeID, new Vector4(time / 20, time, time * 2, time * 3));
 
         if (depthStripes)
         {

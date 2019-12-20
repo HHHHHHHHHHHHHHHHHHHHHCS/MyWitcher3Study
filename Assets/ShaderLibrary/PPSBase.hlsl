@@ -6,7 +6,7 @@
 	float4 _ZBufferParams;
 	//x y  screenSize   z w 1+1/size
 	float4 _ScreenParams;
-	//外部传入
+	//Unity传入
 	float4 _Time;
 
 	
