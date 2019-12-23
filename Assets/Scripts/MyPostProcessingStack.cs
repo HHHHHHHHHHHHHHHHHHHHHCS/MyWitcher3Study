@@ -30,7 +30,7 @@ public class MyPostProcessingStack : ScriptableObject
 
     private static Mesh fullScreenTriangle;
 
-    private static Material mainMat, toneMappingMat, chromaticAberrationMat, vignetteMat, drunkEffectMat;
+    private static Material mainMat, toneMappingMat, sharpenMat, drunkEffectMat, chromaticAberrationMat, vignetteMat;
 
     private static int tempTexID = Shader.PropertyToID("tempTex");
     private static int temp1TexID = Shader.PropertyToID("temp1Tex");
@@ -53,6 +53,12 @@ public class MyPostProcessingStack : ScriptableObject
     private static int hdrColorTexID = Shader.PropertyToID("_HDRColorTex");
     private static int avgLuminanceTexID = Shader.PropertyToID("_AvgLuminanceTex");
 
+    private static int sharpenNearFarID = Shader.PropertyToID("sharpenNearFar");
+    private static int sharpenDistLumScaleBiasID = Shader.PropertyToID("sharpenDistLumScaleBias");
+
+    private static int drunkDataID = Shader.PropertyToID("drunkData");
+    private static int drunkCenterID = Shader.PropertyToID("drunkCenter");
+
     private static int vignetteSimpleIntensityID = Shader.PropertyToID("vignetteSimpleIntensity");
     private static int vignetteSimpleThresholdID = Shader.PropertyToID("vignetteSimpleThreshold");
     private static int vignetteComplexIntensityID = Shader.PropertyToID("vignetteComplexIntensity");
@@ -62,9 +68,6 @@ public class MyPostProcessingStack : ScriptableObject
 
     private static int caCenterID = Shader.PropertyToID("caCenter");
     private static int caCustomDataID = Shader.PropertyToID("caCustomData");
-
-    private static int drunkDataID = Shader.PropertyToID("drunkData");
-    private static int drunkCenterID = Shader.PropertyToID("drunkCenter");
 
     //-------------------------
 
@@ -106,6 +109,38 @@ public class MyPostProcessingStack : ScriptableObject
 
     //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
     [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f, 1.50f, 0.5f);
+
+    //-------------------------
+    //锐化效果
+    [Space(10f), Header("Sharpen"), SerializeField]
+    private bool sharpen;
+
+    //锐化效果 近/远强度
+    [SerializeField] private float sharpenNear = 1, sharpenFar = 0;
+
+    //锐化效果 锐化强度缩放/偏移
+    [SerializeField] private float sharpenDistanceScale = 1, sharpenDistanceBias = 0;
+
+    //锐化效果 锐化亮度缩放/偏移
+    [SerializeField] private float sharpenLumScale = 1, sharpenLumBias = 0;
+
+    //-------------------------
+
+    //醉酒效果
+    [Space(10f), Header("DrunkEffect"), SerializeField]
+    private bool drunkEffect;
+
+    //醉酒的旋转像素的半径
+    [SerializeField] private float drunkRadius = 1.0f;
+
+    //醉酒的强度[0-1]
+    [SerializeField, Range(0, 1f)] private float drunkIntensity = 1.0f;
+
+    //醉酒的旋转速度
+    [SerializeField] private float drunkRotationSpeed = 0.05f;
+
+    //醉酒的中心点
+    [SerializeField] private Vector2 drunkCenter = new Vector2(0.5f, 0.5f);
 
     //-------------------------
 
@@ -156,24 +191,6 @@ public class MyPostProcessingStack : ScriptableObject
     //色差偏移 偏移扰动尺寸
     [SerializeField] private float caDistortSize = 0.75f;
 
-    //-------------------------
-
-    //醉酒效果
-    [Space(10f), Header("DrunkEffect"), SerializeField]
-    private bool drunkEffect;
-
-    //醉酒的旋转像素的半径
-    [SerializeField] private float drunkRadius = 1.0f;
-
-    //醉酒的强度[0-1]
-    [SerializeField, Range(0, 1f)] private float drunkIntensity = 1.0f;
-
-    //醉酒的旋转速度
-    [SerializeField] private float drunkRotationSpeed = 0.05f;
-
-    //醉酒的中心点
-    [SerializeField] private Vector2 drunkCenter = new Vector2(0.5f, 0.5f);
-
     private RenderTexture eyeAdaptationPreRT;
 
 
@@ -211,6 +228,18 @@ public class MyPostProcessingStack : ScriptableObject
             hideFlags = HideFlags.HideAndDontSave
         };
 
+        sharpenMat = new Material(Shader.Find("Hidden/My Pipeline/Sharpen"))
+        {
+            name = "My Sharpen Material",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        drunkEffectMat = new Material(Shader.Find("Hidden/My Pipeline/DrunkEffect"))
+        {
+            name = "My DrunkEffect Material",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
         chromaticAberrationMat = new Material(Shader.Find("Hidden/My Pipeline/ChromaticAberration"))
         {
             name = "My ChromaticAberration Material",
@@ -220,12 +249,6 @@ public class MyPostProcessingStack : ScriptableObject
         vignetteMat = new Material(Shader.Find("Hidden/My Pipeline/Vignette"))
         {
             name = "My Vignette Material",
-            hideFlags = HideFlags.HideAndDontSave
-        };
-
-        drunkEffectMat = new Material(Shader.Find("Hidden/My Pipeline/DrunkEffect"))
-        {
-            name = "My DrunkEffect Material",
             hideFlags = HideFlags.HideAndDontSave
         };
     }
@@ -281,19 +304,10 @@ public class MyPostProcessingStack : ScriptableObject
             }
         }
 
-        //Vignette
-        if (vignette)
+        if (sharpen)
         {
             int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
-            Vignette(cb, nowRTID, endRTID, width, height, format);
-            nowRTID = endRTID;
-        }
-
-        //Chromatic Aberration
-        if (chromaticAberration)
-        {
-            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
-            ChromaticAberration(cb, nowRTID, endRTID, width, height, format);
+            Sharpen(cb, nowRTID, endRTID, width, height, format);
             nowRTID = endRTID;
         }
 
@@ -302,6 +316,24 @@ public class MyPostProcessingStack : ScriptableObject
         {
             int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
             DrunkEffect(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
+        }
+
+
+        //Vignette
+        if (vignette)
+        {
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            Vignette(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
+        }
+
+
+        //Chromatic Aberration
+        if (chromaticAberration)
+        {
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            ChromaticAberration(cb, nowRTID, endRTID, width, height, format);
             nowRTID = endRTID;
         }
 
@@ -529,6 +561,34 @@ public class MyPostProcessingStack : ScriptableObject
         cb.EndSample("Tone Mapping");
     }
 
+    private void Sharpen(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , int width, int height, RenderTextureFormat format)
+    {
+        cb.BeginSample("Sharpen");
+
+        cb.SetGlobalVector(sharpenNearFarID, new Vector2(sharpenNear, sharpenFar));
+        cb.SetGlobalVector(sharpenDistLumScaleBiasID
+            , new Vector4(sharpenDistanceScale, sharpenDistanceBias
+                , sharpenLumScale, sharpenLumBias));
+
+        Blit(cb, srcID, destID, sharpenMat);
+
+        cb.EndSample("Sharpen");
+    }
+
+    private void DrunkEffect(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , int width, int height, RenderTextureFormat format)
+    {
+        cb.BeginSample("Chromatic Aberration");
+
+        cb.SetGlobalVector(drunkDataID, new Vector3(drunkRadius, drunkIntensity, drunkRotationSpeed));
+        cb.SetGlobalVector(drunkCenterID, drunkCenter);
+
+        Blit(cb, srcID, destID, drunkEffectMat);
+
+        cb.EndSample("Chromatic Aberration");
+    }
+
     private void Vignette(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
         , int width, int height, RenderTextureFormat format)
     {
@@ -561,19 +621,6 @@ public class MyPostProcessingStack : ScriptableObject
         cb.SetGlobalVector(caCustomDataID, new Vector4(caCenterDistanceThreshold, caFA, caIntensity, caDistortSize));
 
         Blit(cb, srcID, destID, chromaticAberrationMat);
-
-        cb.EndSample("Chromatic Aberration");
-    }
-
-    private void DrunkEffect(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
-        , int width, int height, RenderTextureFormat format)
-    {
-        cb.BeginSample("Chromatic Aberration");
-
-        cb.SetGlobalVector(drunkDataID, new Vector3(drunkRadius, drunkIntensity, drunkRotationSpeed));
-        cb.SetGlobalVector(drunkCenterID, drunkCenter);
-
-        Blit(cb, srcID, destID, drunkEffectMat);
 
         cb.EndSample("Chromatic Aberration");
     }
