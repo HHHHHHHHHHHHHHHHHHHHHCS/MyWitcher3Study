@@ -1,0 +1,83 @@
+#pragma kernel CSMain
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+
+CBUFFER_START(PerFrame)
+float4 cb0_v0;  // (480.0, 270.0, 0.26106, 0.7599)
+float4 cb0_v1;  // (1920.0, 1080.0, 0, 0)
+float4 cb0_v2;  // (0.0, 0.51582, 4.0, 0.0)
+CBUFFER_END
+
+static const float3 LUMA_RGB = float3(0.2126, 0.7152, 0.0722);
+
+// Inputs:
+// 1/4 x 1/4 downscaled fullscreen HDR color buffer
+Texture2D texture0: register(t0);
+
+// Fullscreen depth buffer
+Texture2D texture1: register(t1);
+
+RWStructuredBuffer < uint > g_buffer: register(u0);
+
+groupshared uint shared_data[256];
+
+[numthreads(64, 1, 1)]
+void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
+{
+	const int groupID = Gid.x;//0~270
+	
+	const uint threadID = GTid.x;//0~63
+	
+	UNITY_UNROLL
+	for (uint idx = 0; idx < 4; idx ++)
+	{
+		const uint offset = threadID + idx * 64;
+		shared_data[offset] = 0;
+	}
+	
+	GroupMemoryBarrierWithGroupSync();
+	
+	float viewportSizeX = cb0_v0.x;//480
+	
+	UNITY_LOOP
+	for (uint positionX = 0; positionX < viewportSizeX; positionX += 64)
+	{
+		uint currentPixelPositionX = positionX + threadID;
+		uint currentPixelPositionY = groupID;
+		
+		if (currentPixelPositionX < viewportSizeX)
+		{
+			uint2 colorPos = uint2(currentPixelPositionX, currentPixelPositionY);
+			float3 color = texture0.Load(int3(colorPos, 0)).rgb;
+			float luma = dot(color, LUMA_RGB);
+			
+			const int iDepthTextureScale = (int) cb0_v2.z;
+			
+			uint2 depthPos = iDepthTextureScale * colorPos;
+			float depth = texture1.Load(int3(depthPos, 0)).x;
+			
+			//check if sky
+			float value = (depth == cb0_v2.w)?cb0_v2.y: 0.0;
+			
+			float lumaOK = lerp(luma, cb0_v2.x, value);
+
+			lumaOK = log(lumaOK + 1.0);
+			lumaOK *= 128;
+			
+			uint uLuma = (uint)lumaOK;
+			uLuma = min(uLuma, 255);
+			
+			InterlockedAdd(shared_data[uLuma], 1);
+		}
+	}
+	
+	GroupMemoryBarrierWithGroupSync();
+	
+	UNITY_UNROLL
+	for (uint idx = 0; idx < 4; idx ++)
+	{
+		const uint offset = threadID + idx * 64;
+		uint data = shared_data[offset];
+		InterlockedAdd(g_buffer[offset], data);
+	}
+}
