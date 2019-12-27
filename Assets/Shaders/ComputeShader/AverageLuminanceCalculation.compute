@@ -3,11 +3,11 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 CBUFFER_START(PerFrame)
-float4 averageLumainanceData;      // xy - downscaled buffer size, zw - start/end params
+float4 avgLumaCalcData;      // xy - downscaled buffer size, zw - start/end params
 CBUFFER_END
 
-RWStructuredBuffer<uint> g_buffer;
-RWTexture2D<float> g_avgLuminance;
+RWStructuredBuffer<uint> lumaBuffer;
+RWTexture2D<float> avgLumaTex;
 
 groupshared uint shared_data[256];
 
@@ -28,7 +28,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	for (uint idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
-		shared_data[offset] = g_buffer[offset];
+		shared_data[offset] = lumaBuffer[offset];
 	}
 	
 	GroupMemoryBarrierWithGroupSync();
@@ -38,11 +38,11 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	if (threadID == 0)
 	{
 		//缩减缓冲区中的像素总数
-		uint fTotalPixels = averageLumainanceData.x * averageLumainanceData.y;
+		uint fTotalPixels = avgLumaCalcData.x * avgLumaCalcData.y;
 		
 		//我们要纳入平均亮度计算的起始像素数 因为缩小了4 start:0  end:*4
-		int pixelsToConsiderStart = fTotalPixels * averageLumainanceData.z;
-		int pixelsToConsiderEnd = fTotalPixels * averageLumainanceData.w;
+		int pixelsToConsiderStart = fTotalPixels * avgLumaCalcData.z;
+		int pixelsToConsiderEnd = fTotalPixels * avgLumaCalcData.w;
 		
 		int pixelsMinusOne = fTotalPixels - 1;
 		
@@ -156,6 +156,6 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 		}
 		
 		//保存平均亮度
-		g_avgLuminance[uint2(0, 0)] = finalAvgLuminance;
+		avgLumaTex[uint2(0, 0)] = finalAvgLuminance;
 	}
 }

@@ -3,21 +3,16 @@
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 CBUFFER_START(PerFrame)
-float4 cb0_v0;  // (480.0, 270.0, 0.26106, 0.7599)
-float4 cb0_v1;  // (1920.0, 1080.0, 0, 0)
-float4 cb0_v2;  // (0.0, 0.51582, 4.0, 0.0)
+float rtSize;  // 1920/4 = 480
+float4 avgLumaHistData;  // (0.0, 0.51582, 4.0, 0.0)
 CBUFFER_END
 
 static const float3 LUMA_RGB = float3(0.2126, 0.7152, 0.0722);
 
-// Inputs:
-// 1/4 x 1/4 downscaled fullscreen HDR color buffer
-Texture2D texture0: register(t0);
+TEXTURE2D(_MainTex);
+TEXTURE2D(_DepthTex);
 
-// Fullscreen depth buffer
-Texture2D texture1: register(t1);
-
-RWStructuredBuffer < uint > g_buffer: register(u0);
+RWStructuredBuffer<uint> lumaBuffer;
 
 groupshared uint shared_data[256];
 
@@ -35,9 +30,10 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 		shared_data[offset] = 0;
 	}
 	
+	//等待全部的颜色清空完毕
 	GroupMemoryBarrierWithGroupSync();
 	
-	float viewportSizeX = cb0_v0.x;//480
+	float viewportSizeX = rtSize.x;//1920/4 = 480
 	
 	UNITY_LOOP
 	for (uint positionX = 0; positionX < viewportSizeX; positionX += 64)
@@ -48,19 +44,25 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 		if (currentPixelPositionX < viewportSizeX)
 		{
 			uint2 colorPos = uint2(currentPixelPositionX, currentPixelPositionY);
-			float3 color = texture0.Load(int3(colorPos, 0)).rgb;
+			float3 color = _MainTex.Load(int3(colorPos, 0)).rgb;
 			float luma = dot(color, LUMA_RGB);
 			
-			const int iDepthTextureScale = (int) cb0_v2.z;
+			//因为颜色的RT缩放了1/4  所以位置要*4回来
+			//所以 iDepthTextureScale = 4
+			const int iDepthTextureScale = (int) avgLumaHistData.z;
 			
 			uint2 depthPos = iDepthTextureScale * colorPos;
-			float depth = texture1.Load(int3(depthPos, 0)).x;
+			float depth = _DepthTex.Load(int3(depthPos, 0)).x;
 			
 			//check if sky
-			float value = (depth == cb0_v2.w)?cb0_v2.y: 0.0;
+			float value = (depth == avgLumaHistData.w)?avgLumaHistData.y: 0.0;
 			
-			float lumaOK = lerp(luma, cb0_v2.x, value);
-
+			//如果是天空则降低亮度 到某个值
+			float lumaOK = lerp(luma, avgLumaHistData.x, value);
+			
+			//log可以使颜色分部更均匀 e为底数
+			//这里是HDR 所以 luma 会超过 1
+			//loge(1) = 0  loge(2.718) = 1
 			lumaOK = log(lumaOK + 1.0);
 			lumaOK *= 128;
 			
@@ -71,13 +73,15 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 		}
 	}
 	
+	//等待颜色分部完毕
 	GroupMemoryBarrierWithGroupSync();
 	
+	//然后把数据写入传出的RW 数据
 	UNITY_UNROLL
 	for (uint idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
 		uint data = shared_data[offset];
-		InterlockedAdd(g_buffer[offset], data);
+		InterlockedAdd(lumaBuffer[offset], data);
 	}
 }
