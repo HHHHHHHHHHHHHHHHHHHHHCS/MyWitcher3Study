@@ -6,7 +6,7 @@ CBUFFER_START(PerFrame)
 float4 avgLumaCalcData;      // xy - downscaled buffer size, zw - start/end params
 CBUFFER_END
 
-RWStructuredBuffer<uint> lumaBuffer;
+RWStructuredBuffer<uint> avgLumaBuffer;
 RWTexture2D<float> avgLumaTex;
 
 groupshared uint shared_data[256];
@@ -28,7 +28,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	for (uint idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
-		shared_data[offset] = lumaBuffer[offset];
+		shared_data[offset] = avgLumaBuffer[offset];
 	}
 	
 	GroupMemoryBarrierWithGroupSync();
@@ -37,10 +37,11 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	UNITY_BRANCH
 	if (threadID == 0)
 	{
-		//缩减缓冲区中的像素总数
+		//想要计算的像素总数目
 		uint fTotalPixels = avgLumaCalcData.x * avgLumaCalcData.y;
 		
-		//我们要纳入平均亮度计算的起始像素数 因为缩小了4 start:0  end:*4
+		//像素范围（或者更具体地说，屏幕亮度范围）
+		//我们想加入平均亮度的计算。
 		int pixelsToConsiderStart = fTotalPixels * avgLumaCalcData.z;
 		int pixelsToConsiderEnd = fTotalPixels * avgLumaCalcData.w;
 		
@@ -125,7 +126,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 			// outLuma = outLuma * 128 //缩放128，表示log（1）* 128 = 0，log（2.71828）* 128 = 128，
 			// log（7.38905）* 128 = 256
 			
-			//我们先加一半（我们不想为零）
+			//我们先加0.5（我们不想为零）
 			float fDecodedLuma = encodedLumaFloat + 0.5;
 			
 			// 解码亮度

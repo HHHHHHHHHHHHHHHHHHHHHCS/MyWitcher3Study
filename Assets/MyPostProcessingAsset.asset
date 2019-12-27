@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b0eae2f60fd6a6b4a92376a85cc10600, type: 3}
+  m_Name: MyPostProcessingAsset
+  m_EditorClassIdentifier: 
+  vignetteComplexMaskTexture: {fileID: 2800000, guid: 375f8945c73fc4d4b89b182bc5ff7150,
+    type: 3}
+  averageLuminanceHistogramCS: {fileID: 7200000, guid: c0d4cad0cb2ff414293be9b24d068f61,
+    type: 3}
+  averageLuminanceCalculationCS: {fileID: 7200000, guid: 3b203bfb28bf3d94d9d75ca4d3f02b0e,
+    type: 3}

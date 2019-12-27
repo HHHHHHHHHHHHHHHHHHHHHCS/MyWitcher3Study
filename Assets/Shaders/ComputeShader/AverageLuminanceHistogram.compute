@@ -1,10 +1,10 @@
+//也可以这样 #pragma kernel Test01 MAIN=CSMain
 #pragma kernel CSMain
 
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 
 CBUFFER_START(PerFrame)
-float rtSize;  // 1920/4 = 480
-float4 avgLumaHistData;  // (0.0, 0.51582, 4.0, 0.0)
+float3 avgLumaHistData;//.x 1920/4 = 480 .y 0.51582  .z 0.0
 CBUFFER_END
 
 static const float3 LUMA_RGB = float3(0.2126, 0.7152, 0.0722);
@@ -12,7 +12,7 @@ static const float3 LUMA_RGB = float3(0.2126, 0.7152, 0.0722);
 TEXTURE2D(_MainTex);
 TEXTURE2D(_DepthTex);
 
-RWStructuredBuffer<uint> lumaBuffer;
+RWStructuredBuffer<uint> avgLumaBuffer;
 
 groupshared uint shared_data[256];
 
@@ -49,20 +49,20 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 			
 			//因为颜色的RT缩放了1/4  所以位置要*4回来
 			//所以 iDepthTextureScale = 4
-			const int iDepthTextureScale = (int) avgLumaHistData.z;
+			const int iDepthTextureScale = 4;
 			
 			uint2 depthPos = iDepthTextureScale * colorPos;
 			float depth = _DepthTex.Load(int3(depthPos, 0)).x;
 			
 			//check if sky
-			float value = (depth == avgLumaHistData.w)?avgLumaHistData.y: 0.0;
+			float value = (depth == 1.0)?avgLumaHistData.y: 0.0;
 			
 			//如果是天空则降低亮度 到某个值
-			float lumaOK = lerp(luma, avgLumaHistData.x, value);
+			float lumaOK = lerp(luma, avgLumaHistData.z, value);
 			
 			//log可以使颜色分部更均匀 e为底数
 			//这里是HDR 所以 luma 会超过 1
-			//loge(1) = 0  loge(2.718) = 1
+			//loge(1) = 0  loge(2.718...) = 1
 			lumaOK = log(lumaOK + 1.0);
 			lumaOK *= 128;
 			
@@ -82,6 +82,6 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 	{
 		const uint offset = threadID + idx * 64;
 		uint data = shared_data[offset];
-		InterlockedAdd(lumaBuffer[offset], data);
+		InterlockedAdd(avgLumaBuffer[offset], data);
 	}
 }

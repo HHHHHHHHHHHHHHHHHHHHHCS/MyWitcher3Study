@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -40,6 +41,11 @@ public class MyPostProcessingStack : ScriptableObject
     private static int mainTexID = Shader.PropertyToID("_MainTex");
     private static int depthID = Shader.PropertyToID("_DepthTex");
 
+    private static int avgLumaBufferID = Shader.PropertyToID("avgLumaBuffer");
+    private static int avgLumaHistDataID = Shader.PropertyToID("avgLumaHistData");
+    private static int avgLumaCalcDataID = Shader.PropertyToID("avgLumaCalcData");
+
+
     private static int avgLuminanceTexRTID = Shader.PropertyToID("avgLuminanceTexRT");
     private static int eyeAdaptationEndRT = Shader.PropertyToID("eyeAdaptationEndRT");
     private static int eyeAdaptationSpeedFactorID = Shader.PropertyToID("eyeAdaptationSpeedFactor");
@@ -69,20 +75,33 @@ public class MyPostProcessingStack : ScriptableObject
     private static int caCenterID = Shader.PropertyToID("caCenter");
     private static int caCustomDataID = Shader.PropertyToID("caCustomData");
 
-    //-------------------------
-
+    #region 深度处理
 
     //深度处理
     [SerializeField] private bool depthStripes;
 
-    //-------------------------
+    #endregion
 
+
+    #region 模糊强度
 
     //模糊强度
     [SerializeField, Range(0, 10)] private int blurStrength;
 
+    #endregion
 
-    //-------------------------
+
+    #region 平均亮度
+
+    //平均亮度 天空盒lerp的t值
+    [SerializeField, Range(0, 1f)] private float avgLumiSkyLerp = 0.5f;
+
+    //平均亮度 天空盒lerp的b值 
+    [SerializeField, Range(0, 1f)] private float avgLumiSkyValue = 0;
+
+    #endregion
+
+    #region 眼睛适应
 
     //眼睛适应
     [Space(10f), Header("EyeAdaptation"), SerializeField]
@@ -91,7 +110,9 @@ public class MyPostProcessingStack : ScriptableObject
     //眼睛适应速度 根据插值 正/负  用不同的 渐变速度
     [SerializeField] private Vector2 eyeAdaptationSpeed;
 
-    //-------------------------
+    #endregion
+
+    #region 颜色映射
 
     //颜色映射
     [Space(10f), Header("Tonemapping"), SerializeField]
@@ -110,7 +131,10 @@ public class MyPostProcessingStack : ScriptableObject
     //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
     [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f, 1.50f, 0.5f);
 
-    //-------------------------
+    #endregion
+
+    #region 锐化效果
+
     //锐化效果
     [Space(10f), Header("Sharpen"), SerializeField]
     private bool sharpen;
@@ -124,7 +148,9 @@ public class MyPostProcessingStack : ScriptableObject
     //锐化效果 锐化亮度缩放/偏移
     [SerializeField] private float sharpenLumScale = 1, sharpenLumBias = 0;
 
-    //-------------------------
+    #endregion
+
+    #region 醉酒效果
 
     //醉酒效果
     [Space(10f), Header("DrunkEffect"), SerializeField]
@@ -142,7 +168,9 @@ public class MyPostProcessingStack : ScriptableObject
     //醉酒的中心点
     [SerializeField] private Vector2 drunkCenter = new Vector2(0.5f, 0.5f);
 
-    //-------------------------
+    #endregion
+
+    #region 暗角
 
     //暗角
     [Space(10f), Header("Vignette"), SerializeField]
@@ -167,10 +195,9 @@ public class MyPostProcessingStack : ScriptableObject
     [SerializeField, ColorUsage(false)]
     private Color vignetteComplexDarkColor = new Color(3f / 255, 4f / 255, 5f / 255);
 
-    //暗角 复杂模式下 颜色遮罩
-    [SerializeField] private Texture2D vignetteComplexMask = null;
+    #endregion
 
-    //-------------------------
+    #region 色差偏移
 
     //色差偏移
     [Space(10f), Header("ChromaticAberration"), SerializeField]
@@ -191,8 +218,11 @@ public class MyPostProcessingStack : ScriptableObject
     //色差偏移 偏移扰动尺寸
     [SerializeField] private float caDistortSize = 0.75f;
 
-    private RenderTexture eyeAdaptationPreRT;
+    #endregion
 
+    private MyPostProcessingAsset postProcessingAsset;
+
+    private RenderTexture eyeAdaptationPreRT;
 
     public bool NeedsDepth => depthStripes;
 
@@ -251,6 +281,11 @@ public class MyPostProcessingStack : ScriptableObject
             name = "My Vignette Material",
             hideFlags = HideFlags.HideAndDontSave
         };
+    }
+
+    public void Setup(MyPostProcessingAsset asset)
+    {
+        postProcessingAsset = asset;
     }
 
     public void RenderAfterOpaque(CommandBuffer cb, int cameraColorID, int cameraDepthID, int width, int height,
@@ -440,6 +475,19 @@ public class MyPostProcessingStack : ScriptableObject
         cb.BeginSample("Tone Mapping");
 
         //AvgLuminance==========================================
+        cb.BeginSample("AvgLuminanceTest");
+
+        ComputeBuffer avgLuminBuffer = new ComputeBuffer(256, sizeof(uint));
+        ComputeShader histogramCS = postProcessingAsset.AverageLuminanceHistogramCS;
+        int kernel = histogramCS.FindKernel("CSMain");
+        cb.SetComputeBufferParam(histogramCS, kernel, avgLumaBufferID, avgLuminBuffer);
+        cb.SetComputeVectorParam(histogramCS, avgLumaHistDataID
+            , new Vector3(width / 4f, avgLumiSkyLerp, avgLumiSkyValue));
+
+        //TODO:
+
+        cb.EndSample("AvgLuminanceTest");
+
 
         cb.BeginSample("AvgLuminance");
 
@@ -605,7 +653,7 @@ public class MyPostProcessingStack : ScriptableObject
             cb.SetGlobalFloat(vignetteComplexIntensityID, vignetteComplexIntensity);
             cb.SetGlobalVector(vignetteComplexWeightsID, vignetteComplexWeights);
             cb.SetGlobalVector(vignetteComplexDarkColorID, vignetteComplexDarkColor);
-            cb.SetGlobalTexture(vignetteComplexMaskID, vignetteComplexMask);
+            cb.SetGlobalTexture(vignetteComplexMaskID, postProcessingAsset.VignetteComplexMaskTexture);
             Blit(cb, srcID, destID, vignetteMat, (int) VignetteEnum.VignetteComplex);
         }
 

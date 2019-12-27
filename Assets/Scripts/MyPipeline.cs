@@ -78,6 +78,7 @@ public class MyPipeline : RenderPipeline
         name = "Post-Processing"
     };
 
+    private MyPostProcessingAsset postProcessingAsset;
     private MyPostProcessingStack defaultStack;
 
     private Texture2D ditherTexture;
@@ -113,7 +114,8 @@ public class MyPipeline : RenderPipeline
     private int msaaSamples;
     private bool allowHDR;
 
-    public MyPipeline(bool dynamicBatching, bool instancing, MyPostProcessingStack _defaultStack,
+    public MyPipeline(bool dynamicBatching, bool instancing
+        , MyPostProcessingAsset _postProcessingAsset, MyPostProcessingStack _defaultStack,
         Texture2D _ditherTexture, float _ditherAnimationSpeed, int _shadowMapSize, float _shadowDistance
         , float _shadowFadeRange, int _shadowCascades, Vector3 _shadowCascadeSplit, float _renderScale
         , int _msaaSamples, bool _allowHDR, bool _syncGameCamera)
@@ -143,6 +145,7 @@ public class MyPipeline : RenderPipeline
             drawFlags |= DrawRendererFlags.EnableInstancing;
         }
 
+        postProcessingAsset = _postProcessingAsset;
         defaultStack = _defaultStack;
 
         shadowMapSize = _shadowMapSize;
@@ -267,6 +270,7 @@ public class MyPipeline : RenderPipeline
 
         var myPipelineCamera = camera.GetComponent<MyPipelineCamera>();
         MyPostProcessingStack activeStack = myPipelineCamera ? myPipelineCamera.PostProcessingStack : defaultStack;
+        activeStack.Setup(postProcessingAsset);
 
         bool scaledRendering = renderScale != 1f && camera.cameraType == CameraType.Game;
 
