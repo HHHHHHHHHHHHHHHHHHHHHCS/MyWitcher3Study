@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
@@ -41,6 +42,7 @@ public class MyPostProcessingStack : ScriptableObject
     private static int mainTexID = Shader.PropertyToID("_MainTex");
     private static int depthID = Shader.PropertyToID("_DepthTex");
 
+    private static int avgLumaRTID = Shader.PropertyToID("avgLumaRT");
     private static int avgLumaBufferID = Shader.PropertyToID("avgLumaBuffer");
     private static int avgLumaHistDataID = Shader.PropertyToID("avgLumaHistData");
     private static int avgLumaCalcDataID = Shader.PropertyToID("avgLumaCalcData");
@@ -78,7 +80,7 @@ public class MyPostProcessingStack : ScriptableObject
     #region 深度处理
 
     //深度处理
-    [SerializeField] private bool depthStripes;
+    [SerializeField] private bool depthStripes = false;
 
     #endregion
 
@@ -86,15 +88,17 @@ public class MyPostProcessingStack : ScriptableObject
     #region 模糊强度
 
     //模糊强度
-    [SerializeField, Range(0, 10)] private int blurStrength;
+    [SerializeField, Range(0, 10)] private int blurStrength = 0;
 
     #endregion
 
 
     #region 平均亮度
 
+    [Space(10f), Header("AverageLuminance")]
     //平均亮度 天空盒lerp的t值
-    [SerializeField, Range(0, 1f)] private float avgLumiSkyLerp = 0.5f;
+    [SerializeField, Range(0, 1f)]
+    private float avgLumiSkyLerp = 0.5f;
 
     //平均亮度 天空盒lerp的b值 
     [SerializeField, Range(0, 1f)] private float avgLumiSkyValue = 0;
@@ -105,10 +109,10 @@ public class MyPostProcessingStack : ScriptableObject
 
     //眼睛适应
     [Space(10f), Header("EyeAdaptation"), SerializeField]
-    private bool eyeAdaptation;
+    private bool eyeAdaptation = false;
 
     //眼睛适应速度 根据插值 正/负  用不同的 渐变速度
-    [SerializeField] private Vector2 eyeAdaptationSpeed;
+    [SerializeField] private Vector2 eyeAdaptationSpeed = new Vector2(0.05f, 0.05f);
 
     #endregion
 
@@ -116,7 +120,7 @@ public class MyPostProcessingStack : ScriptableObject
 
     //颜色映射
     [Space(10f), Header("Tonemapping"), SerializeField]
-    private bool toneMapping;
+    private bool toneMapping = false;
 
     //颜色映射范围
     //[SerializeField, Range(1f, 100f)] private float toneMappingRange = 100f;
@@ -223,8 +227,9 @@ public class MyPostProcessingStack : ScriptableObject
     private MyPostProcessingAsset postProcessingAsset;
 
     private RenderTexture eyeAdaptationPreRT;
+    private ComputeBuffer avgLuminBuffer;
 
-    public bool NeedsDepth => depthStripes;
+    public bool NeedsDepth => depthStripes || toneMapping;
 
     private static void InitializeStatic()
     {
@@ -328,7 +333,7 @@ public class MyPostProcessingStack : ScriptableObject
             }
 
             int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
-            ToneMapping(cb, nowRTID, endRTID, width, height, format);
+            ToneMapping(cb, nowRTID, cameraDepthID, endRTID, width, height, format);
             nowRTID = endRTID;
         }
         else
@@ -337,8 +342,14 @@ public class MyPostProcessingStack : ScriptableObject
             {
                 DestroyImmediate(eyeAdaptationPreRT);
             }
+
+            if (toneMapping)
+            {
+                avgLuminBuffer.Release();
+            }
         }
 
+        /*
         if (sharpen)
         {
             int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
@@ -378,7 +389,7 @@ public class MyPostProcessingStack : ScriptableObject
             Blit(cb, nowRTID, cameraColorID);
             nowRTID = cameraColorID;
         }
-
+        */
 
         Blit(cb, nowRTID, BuiltinRenderTextureType.CameraTarget);
 
@@ -469,33 +480,52 @@ public class MyPostProcessingStack : ScriptableObject
         cb.EndSample("Blur");
     }
 
-    private void ToneMapping(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
-        , int width, int height, RenderTextureFormat format)
+
+    private void ToneMapping(CommandBuffer cb, RenderTargetIdentifier srcID, int _depthID
+        , RenderTargetIdentifier destID, int width, int height, RenderTextureFormat format)
     {
         cb.BeginSample("Tone Mapping");
 
         //AvgLuminance==========================================
         cb.BeginSample("AvgLuminanceTest");
 
-        ComputeBuffer avgLuminBuffer = new ComputeBuffer(256, sizeof(uint));
+        cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, RenderTextureFormat.R16,
+            RenderTextureReadWrite.Linear, 1, true);
+
+        cb.GetTemporaryRT(avgLumaRTID, width / 4, height / 4, 0, FilterMode.Bilinear, format);
+        cb.Blit(srcID, avgLumaRTID);
+
+        if (avgLuminBuffer == null)
+        {
+            avgLuminBuffer = new ComputeBuffer(256, sizeof(uint));
+        }
+
         ComputeShader histogramCS = postProcessingAsset.AverageLuminanceHistogramCS;
-        int kernel = histogramCS.FindKernel("CSMain");
-        cb.SetComputeBufferParam(histogramCS, kernel, avgLumaBufferID, avgLuminBuffer);
+        int hKernel = histogramCS.FindKernel("CSMain");
+        cb.SetComputeBufferParam(histogramCS, hKernel, avgLumaBufferID, avgLuminBuffer);
         cb.SetComputeVectorParam(histogramCS, avgLumaHistDataID
             , new Vector3(width / 4f, avgLumiSkyLerp, avgLumiSkyValue));
+        cb.SetComputeTextureParam(histogramCS, hKernel, mainTexID, avgLumaRTID);
+        cb.SetComputeTextureParam(histogramCS, hKernel, depthID, _depthID);
+        cb.DispatchCompute(histogramCS, hKernel, height / 4, 1, 1);
 
-        //TODO:
+        ComputeShader calcCS = postProcessingAsset.AverageLuminanceCalculationCS;
+        int cKernel = calcCS.FindKernel("CSMain");
+        cb.SetComputeVectorParam(calcCS, avgLumaCalcDataID, new Vector4(width / 4f, height / 4f, 0f, 1f));
+        cb.SetComputeBufferParam(calcCS, cKernel, avgLumaBufferID, avgLuminBuffer);
+        cb.SetComputeTextureParam(calcCS, cKernel, mainTexID, avgLuminanceTexRTID);
+        cb.DispatchCompute(calcCS, cKernel, 64, 1, 1);
+
 
         cb.EndSample("AvgLuminanceTest");
 
-
+        /*
         cb.BeginSample("AvgLuminance");
 
 
         int max = Mathf.Max(width, height);
 
         int iterator = (int) (Mathf.Log(max, 2));
-
 
         cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, format);
 
@@ -603,8 +633,12 @@ public class MyPostProcessingStack : ScriptableObject
         Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
 
         cb.EndSample("ToneMapping");
+                */
+        cb.Blit(avgLuminanceTexRTID, destID);
+        //cb.Blit(srcID, destID);
 
-        cb.ReleaseTemporaryRT(avgLuminanceTexRTID);
+
+        //cb.ReleaseTemporaryRT(avgLuminanceTexRTID);
 
         cb.EndSample("Tone Mapping");
     }

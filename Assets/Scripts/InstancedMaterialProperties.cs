@@ -17,7 +17,7 @@ public class InstancedMaterialProperties : MonoBehaviour
 
     [SerializeField, Range(0f, 1f)] private float smoothness = 0.5f;
 
-    [SerializeField] private float pulseEmissionFreqency;
+    [SerializeField] private float pulseEmissionFrequency = 0;
 
     [SerializeField, ColorUsage(false, true)]
     private Color emissionColor = Color.black;
@@ -41,7 +41,7 @@ public class InstancedMaterialProperties : MonoBehaviour
     {
         OnValidate();
 
-        if (pulseEmissionFreqency <= 0f)
+        if (pulseEmissionFrequency <= 0f)
         {
             enabled = false;
         }
@@ -51,7 +51,7 @@ public class InstancedMaterialProperties : MonoBehaviour
     {
         Color originalEmissionColor = emissionColor;
         emissionColor *= 0.5f +
-                         0.5f * Mathf.Cos(2f * Mathf.PI * pulseEmissionFreqency * Time.time);
+                         0.5f * Mathf.Cos(2f * Mathf.PI * pulseEmissionFrequency * Time.time);
         OnValidate();
         //MeshRenderer.UpdateGIMaterials();
         //因为我们只改变了一个自发光颜色  所以没有必要全部重新刷新

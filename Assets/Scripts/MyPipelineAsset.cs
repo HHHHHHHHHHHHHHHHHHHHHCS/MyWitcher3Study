@@ -31,16 +31,16 @@ public class MyPipelineAsset : RenderPipelineAsset
     }
 
     //后处理资源文件
-    [SerializeField] private MyPostProcessingAsset postProcessingAsset;
+    [SerializeField] private MyPostProcessingAsset postProcessingAsset = null;
 
     //后处理数值文件
-    [SerializeField] private MyPostProcessingStack defaultStack;
+    [SerializeField] private MyPostProcessingStack defaultStack = null;
 
     //如果都是大物体不用怎么动态合批  不建议勾选  不然Unity会每帧去计算是否要合批
-    [SerializeField] private bool dynamicBatching;
+    [SerializeField] private bool dynamicBatching = false;
 
     //实例化  减少 相同网格和材质的东西 切换绘制的时间
-    [SerializeField] private bool instancing;
+    [SerializeField] private bool instancing = false;
 
 
     //LOD抖动消融图片
@@ -77,7 +77,7 @@ public class MyPipelineAsset : RenderPipelineAsset
     [SerializeField] private MSAAMode msaaSamples = MSAAMode.Off;
 
     //允许HDR
-    [SerializeField] private bool allowHDR;
+    [SerializeField] private bool allowHDR = false;
 
     //同步Camera
     [SerializeField] private bool syncGameCamera = false;

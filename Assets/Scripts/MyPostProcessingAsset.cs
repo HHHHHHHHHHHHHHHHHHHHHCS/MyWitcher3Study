@@ -6,13 +6,13 @@ using UnityEngine;
 public class MyPostProcessingAsset : ScriptableObject
 {
     //暗角 复杂模式下 颜色遮罩
-    [SerializeField] private Texture2D vignetteComplexMaskTexture;
+    [SerializeField] private Texture2D vignetteComplexMaskTexture = null;
 
     //平均luminance 颜色收集
-    [SerializeField] private ComputeShader averageLuminanceHistogramCS;
+    [SerializeField] private ComputeShader averageLuminanceHistogramCS = null;
 
     //平均luminance 计算最终亮度
-    [SerializeField] private ComputeShader averageLuminanceCalculationCS;
+    [SerializeField] private ComputeShader averageLuminanceCalculationCS = null;
 
 
     public Texture2D VignetteComplexMaskTexture =>

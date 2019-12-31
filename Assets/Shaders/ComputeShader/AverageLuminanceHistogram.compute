@@ -23,8 +23,10 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 	
 	const uint threadID = GTid.x;//0~63
 	
+	uint idx = 0;
+	
 	UNITY_UNROLL
-	for (uint idx = 0; idx < 4; idx ++)
+	for (idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
 		shared_data[offset] = 0;
@@ -33,7 +35,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 	//等待全部的颜色清空完毕
 	GroupMemoryBarrierWithGroupSync();
 	
-	float viewportSizeX = rtSize.x;//1920/4 = 480
+	uint viewportSizeX = avgLumaHistData.x;//1920/4 = 480
 	
 	UNITY_LOOP
 	for (uint positionX = 0; positionX < viewportSizeX; positionX += 64)
@@ -47,6 +49,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 			float3 color = _MainTex.Load(int3(colorPos, 0)).rgb;
 			float luma = dot(color, LUMA_RGB);
 			
+			/*
 			//因为颜色的RT缩放了1/4  所以位置要*4回来
 			//所以 iDepthTextureScale = 4
 			const int iDepthTextureScale = 4;
@@ -68,7 +71,8 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 			
 			uint uLuma = (uint)lumaOK;
 			uLuma = min(uLuma, 255);
-			
+			*/
+			uint uLuma = min(luma*128, 255);
 			InterlockedAdd(shared_data[uLuma], 1);
 		}
 	}
@@ -78,7 +82,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 	
 	//然后把数据写入传出的RW 数据
 	UNITY_UNROLL
-	for (uint idx = 0; idx < 4; idx ++)
+	for (idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
 		uint data = shared_data[offset];

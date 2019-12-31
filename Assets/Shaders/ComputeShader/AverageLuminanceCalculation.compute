@@ -7,7 +7,7 @@ float4 avgLumaCalcData;      // xy - downscaled buffer size, zw - start/end para
 CBUFFER_END
 
 RWStructuredBuffer<uint> avgLumaBuffer;
-RWTexture2D<float> avgLumaTex;
+RWTexture2D<float> _MainTex;
 
 groupshared uint shared_data[256];
 
@@ -29,16 +29,18 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	{
 		const uint offset = threadID + idx * 64;
 		shared_data[offset] = avgLumaBuffer[offset];
+		avgLumaBuffer[offset] = 0;
 	}
 	
 	GroupMemoryBarrierWithGroupSync();
+	
 	
 	//只有在线程组ID是0的时候 才计算
 	UNITY_BRANCH
 	if (threadID == 0)
 	{
 		//想要计算的像素总数目
-		uint fTotalPixels = avgLumaCalcData.x * avgLumaCalcData.y;
+		int fTotalPixels = int(avgLumaCalcData.x) * int(avgLumaCalcData.y);
 		
 		//像素范围（或者更具体地说，屏幕亮度范围）
 		//我们想加入平均亮度的计算。
@@ -89,7 +91,6 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 				lumaValue ++ ;
 			}
 		}
-		
 		float finalAvgLuminance = 0.0f;
 		//第一个循环中被忽略的像素数
 		uint numProcessedPixelStart = numProcessedPixels;
@@ -138,25 +139,26 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 			float fCurrentLumaContribution = numberOfPixelsWithCurrentLuma * fDecodedLuma;
 			//所有先前遍和当前遍的（临时）贡献。
 			float tempTotalContribution = fCurrentLumaContribution + finalAvgLuminance;
-			
+
 			UNITY_FLATTEN
 			if (numProcessedPixels > pixelsToConsiderEnd)
 			{
 				bExitLoop = true;
-				int diff = numProcessedPixels - numProcessedPixelStart;
+				//int diff = numProcessedPixels - numProcessedPixelStart;
 				//我们已经处理了所有想要的像素，因此请在此处执行最终除法。
 				//从用户选择的开始算起的所有已处理像素数
-				finalAvgLuminance = tempTotalContribution / float(diff);
+				//finalAvgLuminance = tempTotalContribution / float(diff);
 			}
 			else
 			{
+				bExitLoop = true;
 				//进一步传递当前贡献并增加lumaValue
-				finalAvgLuminance = tempTotalContribution;
-				lumaValue ++ ;
+				//finalAvgLuminance = tempTotalContribution;
+				//lumaValue ++ ;
 			}
 		}
 		
 		//保存平均亮度
-		avgLumaTex[uint2(0, 0)] = finalAvgLuminance;
+		_MainTex[uint2(0, 0)] = numProcessedPixels/pixelsToConsiderEnd;
 	}
 }

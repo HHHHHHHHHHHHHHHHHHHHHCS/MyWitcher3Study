@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   depthStripes: 0
   blurStrength: 0
+  avgLumiSkyLerp: 0.5
+  avgLumiSkyValue: 0
   eyeAdaptation: 1
   eyeAdaptationSpeed: {x: 0.05, y: 0.05}
   toneMapping: 1
@@ -40,7 +42,6 @@ MonoBehaviour:
   vignetteComplexIntensity: 0.4
   vignetteComplexWeights: {x: 0.98, y: 0.98, z: 0.98}
   vignetteComplexDarkColor: {r: 0.011764706, g: 0.015686275, b: 0.019607844, a: 1}
-  vignetteComplexMask: {fileID: 2800000, guid: 375f8945c73fc4d4b89b182bc5ff7150, type: 3}
   chromaticAberration: 0
   caCenter: {x: 0.5, y: 0.5}
   caCenterDistanceThreshold: 0.2
