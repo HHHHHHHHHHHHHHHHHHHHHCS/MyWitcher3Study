@@ -92,13 +92,13 @@ public class MyPostProcessingStack : ScriptableObject
 
     #endregion
 
-
     #region 平均亮度
 
-    [Space(10f), Header("AverageLuminance")]
+    [SerializeField, Space(10f), Header("AverageLuminance")]
+    private bool avgLumiComputeShader = true;
+
     //平均亮度 天空盒lerp的t值
-    [SerializeField, Range(0, 1f)]
-    private float avgLumiSkyLerp = 0.5f;
+    [SerializeField, Range(0, 1f)] private float avgLumiSkyLerp = 0.5f;
 
     //平均亮度 天空盒lerp的b值 
     [SerializeField, Range(0, 1f)] private float avgLumiSkyValue = 0;
@@ -130,7 +130,7 @@ public class MyPostProcessingStack : ScriptableObject
 
     //ToneMapU2Func曲线 ABC DEF 曲线参数
     [SerializeField] private Vector3 tmCurveABC = new Vector3(0.25f, 0.306f, 0.099f),
-        tmcurveDEF = new Vector3(0.35f, 0.025f, 0.40f);
+        tmCurveDEF = new Vector3(0.35f, 0.025f, 0.40f);
 
     //.x->某种“白标”或中间灰度  .y->u2分子乘数  .z->log/mul/exp指数
     [SerializeField] private Vector3 tmCustomData = new Vector3(0.245f, 1.50f, 0.5f);
@@ -486,84 +486,85 @@ public class MyPostProcessingStack : ScriptableObject
     {
         cb.BeginSample("Tone Mapping");
 
+
         //AvgLuminance==========================================
-        cb.BeginSample("AvgLuminanceTest");
-
-        cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, RenderTextureFormat.R16,
-            RenderTextureReadWrite.Linear, 1, true);
-
-        cb.GetTemporaryRT(avgLumaRTID, width / 4, height / 4, 0, FilterMode.Bilinear, format);
-        cb.Blit(srcID, avgLumaRTID);
-
-        if (avgLuminBuffer == null)
-        {
-            avgLuminBuffer = new ComputeBuffer(256, sizeof(uint));
-        }
-
-        ComputeShader histogramCS = postProcessingAsset.AverageLuminanceHistogramCS;
-        int hKernel = histogramCS.FindKernel("CSMain");
-        cb.SetComputeBufferParam(histogramCS, hKernel, avgLumaBufferID, avgLuminBuffer);
-        cb.SetComputeVectorParam(histogramCS, avgLumaHistDataID
-            , new Vector3(width / 4f, avgLumiSkyLerp, avgLumiSkyValue));
-        cb.SetComputeTextureParam(histogramCS, hKernel, mainTexID, avgLumaRTID);
-        cb.SetComputeTextureParam(histogramCS, hKernel, depthID, _depthID);
-        cb.DispatchCompute(histogramCS, hKernel, height / 4, 1, 1);
-
-        ComputeShader calcCS = postProcessingAsset.AverageLuminanceCalculationCS;
-        int cKernel = calcCS.FindKernel("CSMain");
-        cb.SetComputeVectorParam(calcCS, avgLumaCalcDataID, new Vector4(width / 4f, height / 4f, 0f, 1f));
-        cb.SetComputeBufferParam(calcCS, cKernel, avgLumaBufferID, avgLuminBuffer);
-        cb.SetComputeTextureParam(calcCS, cKernel, mainTexID, avgLuminanceTexRTID);
-        cb.DispatchCompute(calcCS, cKernel, 64, 1, 1);
-
-
-        cb.EndSample("AvgLuminanceTest");
-
-        /*
         cb.BeginSample("AvgLuminance");
 
-
-        int max = Mathf.Max(width, height);
-
-        int iterator = (int) (Mathf.Log(max, 2));
-
-        cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, format);
-
-        if (iterator > 0)
+        if (avgLumiComputeShader)
         {
-            for (int i = 0; i < iterator; i++)
-            {
-                width = Mathf.Max(1, width >> 1);
-                height = Mathf.Max(1, height >> 1);
+            cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, RenderTextureFormat.R16,
+                RenderTextureReadWrite.Linear, 1, true);
 
-                if (i == 0)
-                {
-                    cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
-                    Blit(cb, srcID, tempTexID);
-                }
-                else if ((i & 1) == 1)
-                {
-                    cb.GetTemporaryRT(temp1TexID, width, height, 0, FilterMode.Bilinear, format);
-                    Blit(cb, tempTexID, temp1TexID);
-                    cb.ReleaseTemporaryRT(tempTexID);
-                }
-                else
-                {
-                    cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
-                    Blit(cb, temp1TexID, tempTexID);
-                    cb.ReleaseTemporaryRT(temp1TexID);
-                }
+            cb.GetTemporaryRT(avgLumaRTID, width / 4, height / 4, 0, FilterMode.Bilinear, format);
+
+            cb.Blit(srcID, avgLumaRTID);
+
+            if (avgLuminBuffer == null)
+            {
+                avgLuminBuffer = new ComputeBuffer(256, sizeof(uint));
             }
 
-            //int endID = ((iterator - 1) & 1) == 0 ? tempTexID : temp1TexID;
-            int endID = (iterator & 1) == 0 ? temp1TexID : tempTexID;
-            Blit(cb, endID, avgLuminanceTexRTID, MainPass.Luminance);
-            //释放了 但是下面如果立马开辟一样的 有缓存显示BUG
-            cb.ReleaseTemporaryRT(endID);
+            ComputeShader histogramCS = postProcessingAsset.AverageLuminanceHistogramCS;
+            int hKernel = histogramCS.FindKernel("CSMain");
+            cb.SetComputeBufferParam(histogramCS, hKernel, avgLumaBufferID, avgLuminBuffer);
+            cb.SetComputeVectorParam(histogramCS, avgLumaHistDataID
+                , new Vector3(width / 4f, avgLumiSkyLerp, avgLumiSkyValue));
+            cb.SetComputeTextureParam(histogramCS, hKernel, mainTexID, avgLumaRTID);
+            cb.SetComputeTextureParam(histogramCS, hKernel, depthID, _depthID);
+            cb.DispatchCompute(histogramCS, hKernel, height / 4, 1, 1);
+
+
+            ComputeShader calcCS = postProcessingAsset.AverageLuminanceCalculationCS;
+            int cKernel = calcCS.FindKernel("CSMain");
+            cb.SetComputeVectorParam(calcCS, avgLumaCalcDataID, new Vector4((int) width / 4, (int) height / 4, 0f, 1f));
+            cb.SetComputeBufferParam(calcCS, cKernel, avgLumaBufferID, avgLuminBuffer);
+            cb.SetComputeTextureParam(calcCS, cKernel, mainTexID, avgLuminanceTexRTID);
+            cb.DispatchCompute(calcCS, cKernel, 64, 1, 1);
         }
         else
         {
-            Blit(cb, srcID, avgLuminanceTexRTID, MainPass.Luminance);
+            int max = Mathf.Max(width, height);
+
+            int iterator = (int) (Mathf.Log(max, 2));
+
+            cb.GetTemporaryRT(avgLuminanceTexRTID, 1, 1, 0, FilterMode.Bilinear, format);
+
+            if (iterator > 0)
+            {
+                for (int i = 0; i < iterator; i++)
+                {
+                    width = Mathf.Max(1, width >> 1);
+                    height = Mathf.Max(1, height >> 1);
+
+                    if (i == 0)
+                    {
+                        cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
+                        Blit(cb, srcID, tempTexID);
+                    }
+                    else if ((i & 1) == 1)
+                    {
+                        cb.GetTemporaryRT(temp1TexID, width, height, 0, FilterMode.Bilinear, format);
+                        Blit(cb, tempTexID, temp1TexID);
+                        cb.ReleaseTemporaryRT(tempTexID);
+                    }
+                    else
+                    {
+                        cb.GetTemporaryRT(tempTexID, width, height, 0, FilterMode.Bilinear, format);
+                        Blit(cb, temp1TexID, tempTexID);
+                        cb.ReleaseTemporaryRT(temp1TexID);
+                    }
+                }
+
+                //int endID = ((iterator - 1) & 1) == 0 ? tempTexID : temp1TexID;
+                int endID = (iterator & 1) == 0 ? temp1TexID : tempTexID;
+                Blit(cb, endID, avgLuminanceTexRTID, MainPass.Luminance);
+                //释放了 但是下面如果立马开辟一样的 有缓存显示BUG
+                cb.ReleaseTemporaryRT(endID);
+            }
+            else
+            {
+                Blit(cb, srcID, avgLuminanceTexRTID, MainPass.Luminance);
+            }
         }
 
         cb.EndSample("AvgLuminance");
@@ -618,7 +619,7 @@ public class MyPostProcessingStack : ScriptableObject
 
         cb.SetGlobalVector(luminClampID, tmluminanceClamp);
         cb.SetGlobalVector(curveABCID, tmCurveABC);
-        cb.SetGlobalVector(curveDEFID, tmcurveDEF);
+        cb.SetGlobalVector(curveDEFID, tmCurveDEF);
         cb.SetGlobalVector(customDataID, tmCustomData);
         cb.SetGlobalTexture(hdrColorTexID, srcID);
         if (eyeAdaptation)
@@ -633,12 +634,8 @@ public class MyPostProcessingStack : ScriptableObject
         Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
 
         cb.EndSample("ToneMapping");
-                */
-        cb.Blit(avgLuminanceTexRTID, destID);
-        //cb.Blit(srcID, destID);
 
-
-        //cb.ReleaseTemporaryRT(avgLuminanceTexRTID);
+        cb.ReleaseTemporaryRT(avgLuminanceTexRTID);
 
         cb.EndSample("Tone Mapping");
     }
