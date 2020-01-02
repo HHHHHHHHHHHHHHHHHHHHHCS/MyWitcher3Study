@@ -238,7 +238,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!23 &39925258
 MeshRenderer:
@@ -410,7 +410,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!23 &64395268
 MeshRenderer:
@@ -770,7 +770,7 @@ MonoBehaviour:
   color: {r: 0, g: 0, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &172544984
 GameObject:
@@ -1620,7 +1620,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0
   smoothness: 0.5
-  pulseEmissionFreqency: 1
+  pulseEmissionFrequency: 0
   emissionColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!1 &279384077
 GameObject:
@@ -1869,7 +1869,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!23 &310734511
 MeshRenderer:
@@ -2009,7 +2009,7 @@ MonoBehaviour:
   color: {r: 0, g: 0, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &344165432
 GameObject:
@@ -2877,7 +2877,7 @@ MonoBehaviour:
   color: {r: 0, g: 0, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &598103297
 GameObject:
@@ -3263,6 +3263,83 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1503575128}
   m_RootOrder: 4
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &728266407
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 728266410}
+  - component: {fileID: 728266409}
+  - component: {fileID: 728266408}
+  m_Layer: 0
+  m_Name: Moon
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!23 &728266408
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 728266407}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: ea168e09e816586469bf595df7ab0cf6, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 0
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+--- !u!33 &728266409
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 728266407}
+  m_Mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &728266410
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 728266407}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 500, y: 500, z: 500}
+  m_LocalScale: {x: 50, y: 50, z: 50}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 15
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &730608649
 GameObject:
@@ -4691,7 +4768,7 @@ MonoBehaviour:
   color: {r: 0, g: 0, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1048104661
 GameObject:
@@ -4741,7 +4818,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!23 &1048104664
 MeshRenderer:
@@ -5699,7 +5776,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0
   smoothness: 0.5
-  pulseEmissionFreqency: 1
+  pulseEmissionFrequency: 0
   emissionColor: {r: 1, g: 0, b: 0, a: 1}
 --- !u!23 &1387929065
 MeshRenderer:
@@ -6241,7 +6318,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!23 &1508910780
 MeshRenderer:
@@ -6530,7 +6607,7 @@ MonoBehaviour:
   color: {r: 0, g: 0, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1551508525
 GameObject:
@@ -6848,7 +6925,7 @@ MonoBehaviour:
   color: {r: 0, g: 0, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1611410775
 GameObject:
@@ -7804,7 +7881,7 @@ MonoBehaviour:
   color: {r: 0, g: 0, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1714749976
 GameObject:
@@ -7854,7 +7931,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!23 &1714749979
 MeshRenderer:
@@ -8304,7 +8381,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 1
   smoothness: 1
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &1837534375
 GameObject:
@@ -8739,7 +8816,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.04
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!23 &1970284889
 MeshRenderer:
@@ -9341,7 +9418,7 @@ MonoBehaviour:
   color: {r: 1, g: 1, b: 1, a: 1}
   metallic: 0.5
   smoothness: 0.5
-  pulseEmissionFreqency: 0
+  pulseEmissionFrequency: 0
   emissionColor: {r: 0, g: 0, b: 0, a: 1}
 --- !u!1 &2058278437
 GameObject:

@@ -1,0 +1,200 @@
+cbuffer cbPerFrame : register (b0)
+{
+    float4 cb0_v0;
+    float4 cb0_v1;
+    float4 cb0_v2;
+    float4 cb0_v3;
+}
+ 
+cbuffer cbData : register (b12)
+{
+    float  elapsedTime;
+    uint   numFrames;
+    float2 pad;
+ 
+    float2 viewportSize;
+    float2 viewportInvSize;
+}
+ 
+cbuffer cbMaterial : register (b4)
+{
+    float4 cb4_v0;
+    float4 cb4_v1;
+    float4 cb4_v2;
+    float4 cb4_v3;
+    float4 cb4_v4;
+}
+ 
+Texture2D texture0 : register (t0);
+Texture2D texture1 : register (t1);
+Texture2D texture2 : register (t2);
+Texture2D texture13 : register (t13);
+ 
+SamplerState samplerAnisoWrap   : register (s0);
+SamplerState samplerPointClamp  : register (s13);
+ 
+ 
+struct VS_OUTPUT
+{
+    float4 out0 : PARAMS;
+    float4 out1 : PARAMS1;
+    float3 NormalW : NORMAL;
+    float3 TangentW : TANGENT;
+};
+ 
+struct PS_OUTPUT
+{
+    float4 RT0   : SV_Target0;
+    float4 RT1   : SV_Target1;
+    float4 RT2 : SV_Target2;
+};
+ 
+// Crytek's BFN
+// see:
+// https://github.com/CRYTEK/CRYENGINE/blob/release/Engine/Shaders/HWScripts/CryFX/Common.cfi#L383
+void CompressUnsignedNormalToNormalsBuffer( in Texture2D texNormalsFit, inout float3 vNormal )
+{
+    // expand from unsigned
+    //vNormal.rgb = vNormal.rgb * 2.h - 1.h;
+ 
+    // renormalize (needed if any blending or interpolation happened before)
+    vNormal.rgb = normalize(vNormal.rgb);
+ 
+    // get unsigned normal for cubemap lookup (note the full float presision is required)
+    float3 vNormalUns = abs( vNormal.rgb );
+ 
+    // get the main axis for cubemap lookup
+    float maxNAbs = max(vNormalUns.z, max(vNormalUns.x, vNormalUns.y));
+ 
+    // get texture coordinates in a collapsed cubemap
+    float2 vTexCoord = vNormalUns.z < maxNAbs ? (vNormalUns.y < maxNAbs?vNormalUns.yz : vNormalUns.xz) : vNormalUns.xy;
+    vTexCoord = vTexCoord.x < vTexCoord.y ? (vTexCoord.yx) : (vTexCoord.xy);
+    vTexCoord.y /= vTexCoord.x;
+ 
+    // fit normal into the edge of unit cube
+    vNormal /= maxNAbs;
+ 
+    // look-up fitting length and scale the normal to get the best fit
+    float fFittingScale = texNormalsFit.SampleLevel( samplerPointClamp, vTexCoord, 0 ).r;
+ 
+    // scale the normal to get the best fit
+    vNormal *= fFittingScale;
+}
+ 
+float getMaxComponent(in float3 color)
+{
+    float result = max( color.x, max( color.y, color.z ) );
+   
+    return result;
+}
+ 
+float3 albedoColorFilter( in float3 color, in float desaturationFactor, in float3 desaturationValue )
+{
+    float sumColorComponents = color.r + color.g + color.b;
+ 
+    float averageColorComponentValue =  0.3333 * sumColorComponents;
+    float oneMinusAverageColorComponentValue = 1.0 - averageColorComponentValue;
+   
+    float factor = 0.5 * (desaturationFactor - 1.0);
+   
+    float avgColorComponent = lerp(averageColorComponentValue, oneMinusAverageColorComponentValue, saturate(factor));
+    float3 desaturatedColor = saturate(color * desaturationValue * 1.5);
+ 
+    float mask = saturate( avgColorComponent * abs(factor) );
+ 
+    float3 finalColor = lerp( color, desaturatedColor, mask );
+    return finalColor;
+}
+ 
+PS_OUTPUT GBufferPS( in VS_OUTPUT Input, in uint bIsFrontFace : SV_IsFrontFace ) : SV_Target0
+{
+    // We have three render target outputs
+    PS_OUTPUT pout = (PS_OUTPUT) 0;
+   
+    // Texcoords
+    float2 Texcoords = Input.out1.xy;
+ 
+    // Data from textures
+    float4 normalTex = texture1.Sample( samplerAnisoWrap, Texcoords );
+    float3 colorTex =  texture0.Sample( samplerAnisoWrap, Texcoords ).rgb;
+ 
+ 
+    /* ALBEDO */
+    // optional desaturation (?) filter
+    float3 albedoColor = albedoColorFilter( colorTex, cb4_v1.x, cb4_v0.rgb );
+    float albedoMaxComponent = getMaxComponent( albedoColor );
+   
+    // I really have no idea what this is
+    // In most of cases Vertex Shader outputs "paramZ" as 0
+    float paramZ = Input.out0.z;    // note, mostly 0
+ 
+    // Note that 0.70 are 0.85 are not present in the output assembly
+    // Because I wanted to use lerp here I had to adjust them manually.
+    float param = (albedoMaxComponent > 0.22) ? 0.70 : 0.85;
+    float mulParam = lerp(1, param, paramZ);
+ 
+    // Output
+    pout.RT0.rgb = albedoColor * mulParam;
+    pout.RT0.a = cb4_v2.x;
+   
+    /* NORMALS */
+    float3 sampledNormal = ((normalTex.xyz - 0.5) * 2);
+ 
+    // Data to construct TBN matrix
+    float3 Tangent = Input.TangentW.xyz;
+    float3 Normal = Input.NormalW.xyz;
+    float3 Bitangent;
+    Bitangent.x = Input.out0.w;
+    Bitangent.yz = Input.out1.zw;
+ 
+    // remove this saturate in real scenario, this is a hack to make sure normal-tbn multiplication
+    // will have 'mad' instructions in assembly
+    Bitangent = saturate(Bitangent);
+   
+    float3x3 TBN = float3x3(Tangent, Bitangent, Normal);
+    float3 normal = mul( sampledNormal, TBN );
+ 
+    // Trick to set normal vector properly in wireframe mode (I guess)
+    //
+    // See: https://docs.microsoft.com/en-us/windows/desktop/direct3dhlsl/dx-graphics-hlsl-semantics
+    //
+    // * SV_IsFrontFace
+    // Specifies whether a triangle is front facing.
+    // For lines and points, IsFrontFace has the value true.
+    // The exception is lines drawn out of triangles (wireframe mode), which sets IsFrontFace
+    // the same way as rasterizing the triangle in solid mode.
+    // Can be written to by the geometry shader, and read by the pixel shader.
+    [branch] if (bIsFrontFace <= 0)
+    {
+        float cosTheta = dot(Input.NormalW, normal);
+        float3 invNormal = cosTheta * Input.NormalW;
+        normal = normal - 2*invNormal;
+    }
+ 
+    /* SPECULAR */
+    float3 specularTex = texture2.Sample( samplerAnisoWrap, Texcoords ).rgb;
+ 
+    // Similar algorithm as in Albedo. Calculate max component, compare this with
+    // some threshold and calculate "minimum" value if needed.
+    // Because in the scene I analyzed paramZ was set to zero, value from texture will be
+    // the final result.
+    float specularMaxComponent = getMaxComponent( specularTex );
+    float3 specB = (specularMaxComponent > 0.2) ? specularTex : float3(0.12, 0.12, 0.12);
+    float3 finalSpec = lerp(specularTex, specB, paramZ);
+    pout.RT2.xyz = finalSpec;
+   
+    /* REFLECTIVITY */
+    float reflectivity = normalTex.a;
+    float reflectivity2 = (reflectivity < 0.33) ? (reflectivity * 0.95) : 0.33;
+   
+    float finalReflectivity = lerp(reflectivity, reflectivity2, paramZ);
+    pout.RT1.a = finalReflectivity;
+ 
+    /* BEST FIT NORMALS */
+    CompressUnsignedNormalToNormalsBuffer(texture13, normal.xyz);
+ 
+    // normals from [-1; 1] to [0 - 1]
+    pout.RT1.xyz = normal * 0.5 + 0.5;
+ 
+    return pout;
+}
