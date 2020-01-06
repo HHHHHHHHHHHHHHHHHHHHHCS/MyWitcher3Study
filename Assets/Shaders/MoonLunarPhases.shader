@@ -15,8 +15,8 @@
 		Pass
 		{
 			Tags { "LightMode" = "MoonOnly" }
-
-
+			
+			
 			HLSLPROGRAM
 			
 			#pragma target 3.5
@@ -33,6 +33,9 @@
 			
 			
 			CBUFFER_START(UnityPerFrame)
+			float4x4 unity_MatrixV;
+			float4x4 glstate_matrix_projection;
+			
 			float4x4 unity_MatrixVP;
 			CBUFFER_END
 			
@@ -77,7 +80,10 @@
 			{
 				VertexOutput o = (VertexOutput)0;
 				float4 worldPos = mul(UNITY_MATRIX_M, float4(v.pos.xyz, 1.0));
-				o.clipPos = mul(unity_MatrixVP, worldPos);
+				unity_MatrixV[0].w = unity_MatrixV[1].w = unity_MatrixV[2].w = 0;
+				o.clipPos = mul(unity_MatrixV, worldPos);
+				o.clipPos = mul(glstate_matrix_projection, o.clipPos);
+				
 				o.uv = v.uv;
 				o.normal = v.normal.xyz;
 				o.tangent = v.tangent.xyz;

@@ -23,12 +23,13 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	// GroupThreadID：单个线程组中当前处理的线程数。
 	//在这种情况下，threadID的值范围为[0-63]
 	const uint threadID = GTid.x;
-	
+	uint idx = 0;
 	//第一步是使用上一阶段的数据设置整个共享数据。
 	//因为每个线程组有64个线程，所以每个线程组可以在一个线程中填充4个元素
 	//使用简单的偏移量。
 	//UNITY_UNROLL
-	for (uint idx = 0; idx < 4; idx ++)
+	UNITY_LOOP
+	for (idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
 		avgLumaBuffer[offset] = avgLumaBuffer[offset];
@@ -74,6 +75,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 		// lumaValue = 0（由于shared_data [0]中还剩4000像素，我们将从
 		//正是这一点）
 		//UNITY_LOOP
+		UNITY_LOOP
 		while(!bExitLoop)
 		{
 			//获取具有特定亮度值的像素数。
@@ -109,6 +111,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 		//之后，我们将总贡献除以分析像素数。
 		//bExitLoop = false;
 		//UNITY_LOOP
+		UNITY_LOOP
 		for (; lumaValue < 256; lumaValue ++)
 		{
 			uint numPixels = avgLumaBuffer[lumaValue];
@@ -149,7 +152,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 			//UNITY_FLATTEN
 			if (numProcessedPixels > pixelsToConsiderEnd)
 			{
-				int diff = numProcessedPixels - numProcessedPixelStart;
+				int diff = max(numProcessedPixels - numProcessedPixelStart, 1);
 				//我们已经处理了所有想要的像素，因此请在此处执行最终除法。
 				//从用户选择的开始算起的所有已处理像素数
 				finalAvgLuminance = tempTotalContribution / float(diff);
@@ -172,7 +175,8 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	GroupMemoryBarrierWithGroupSync();
 	
 	//UNITY_UNROLL
-	for (uint idx = 0; idx < 4; idx ++)
+	UNITY_LOOP
+	for (idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
 		//avgLumaBuffer[offset] = avgLumaBuffer[offset];
