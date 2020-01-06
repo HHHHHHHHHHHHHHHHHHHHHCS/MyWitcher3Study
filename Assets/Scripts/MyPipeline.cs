@@ -377,6 +377,14 @@ public class MyPipeline : RenderPipeline
 
         context.DrawSkybox(camera);
 
+        var moonOnlyDrawSettings = new DrawRendererSettings(
+            camera, new ShaderPassName("MoonOnly"))
+        {
+            flags = drawFlags,
+            sorting = { flags = SortFlags.CommonOpaque }
+        };
+        context.DrawRenderers(cull.visibleRenderers, ref moonOnlyDrawSettings, filterSettings);
+
         if (activeStack)
         {
             if (needsDepth)

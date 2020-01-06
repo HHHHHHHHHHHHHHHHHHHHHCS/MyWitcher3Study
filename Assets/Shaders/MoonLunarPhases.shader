@@ -14,6 +14,9 @@
 	{
 		Pass
 		{
+			Tags { "LightMode" = "MoonOnly" }
+
+
 			HLSLPROGRAM
 			
 			#pragma target 3.5
@@ -115,7 +118,7 @@
 				moonColor *= _MoonColor.rgb;
 				moonColor *= _MoonColor.a;
 				
-				return float4(moonColor, 0.0);
+				return float4(moonColor, 1.0);
 			}
 			
 			ENDHLSL
