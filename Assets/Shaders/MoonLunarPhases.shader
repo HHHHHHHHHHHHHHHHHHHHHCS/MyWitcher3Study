@@ -1,5 +1,15 @@
 ﻿Shader "MyPipeline/MoonLunarPhases"
 {
+	Properties
+	{
+		_MoonAlphaTex ("Alpha Map", 2D) = "white" { }
+		_MoonNormalTex ("Normal Map", 2D) = "bump" { }
+		_MooNowDay ("Moon Now Day", float) = 0
+		_MoonDayBias ("Moon Day Bias", float) = 0
+		_MoonColor ("Moon Color", Color) = (0.75, 0.75, 0.75, 1)
+		[HDR]_MoonGlowColor ("Moon Glow Color", Color) = (0.25, 0.25, 0.25)
+	}
+	
 	SubShader
 	{
 		Pass
@@ -28,8 +38,7 @@
 			CBUFFER_END
 			
 			CBUFFER_START(MyMoonLunarPhases)
-			//.x day  .y uv/dayBias
-			float2 _MoonDayData;
+			float _MooNowDay, _MoonDayBias;
 			float4 _MoonColor;
 			float3 _MoonGlowColor;
 			CBUFFER_END
@@ -55,24 +64,30 @@
 				float3 binormal: TEXCOORD3;
 			};
 			
+			TEXTURE2D(_MoonAlphaTex);
+			SAMPLER(sampler_MoonAlphaTex);
+			
+			TEXTURE2D(_MoonNormalTex);
+			SAMPLER(sampler_MoonNormalTex);
+			
 			VertexOutput MoonPassVertex(VertexInput v)
 			{
 				VertexOutput o = (VertexOutput)0;
 				float4 worldPos = mul(UNITY_MATRIX_M, float4(v.pos.xyz, 1.0));
 				o.clipPos = mul(unity_MatrixVP, worldPos);
 				o.uv = v.uv;
-				o.normal = v.normal;
-				o.tangent = v.tangent;
-				o.binormal = cross(v.normal, v.tangent) * v.tangent.w;
+				o.normal = v.normal.xyz;
+				o.tangent = v.tangent.xyz;
+				o.binormal = cross(v.normal.xyz, v.tangent.xyz) * v.tangent.w;
 				return o;
 			}
 			
 			float4 MoonPassFragment(VertexOutput i): SV_TARGET
 			{
-				float2 uvOffsets = float2(-_MoonDayData.y, 0.0);
+				float2 uvOffsets = float2(-_MoonDayBias, 0.0);
 				float2 uv = i.uv + uvOffsets;
 				
-				float4 moonNormal = _MoonColorTex.Sample(sampler0er, uv);
+				float4 moonNormal = SAMPLE_TEXTURE2D(_MoonNormalTex, sampler_MoonNormalTex, uv);
 				float3 sampledNormal = normalize((moonNormal.xyz - 0.5) * 2);
 				
 				float3 Tangent = normalize(i.tangent.xyz);
@@ -83,7 +98,7 @@
 				
 				float2 vNormal = mul(sampledNormal, (float3x2)TBN).xy;
 				
-				float phase = _MoonDayData.x * (1.0 / SYNODIC_MONTH_LENGTH) + _MoonDayData.y;
+				float phase = _MooNowDay * (1.0 / SYNODIC_MONTH_LENGTH) + _MoonDayBias;
 				
 				phase *= TWO_PI;
 				
@@ -93,17 +108,14 @@
 				float lunarPhase = saturate(dot(vNormal, float2(outCos, outSin)));
 				
 				float3 moonColor = lunarPhase * _MoonGlowColor.xyz;
-				float moonColorA = pow(moonNormal.a, 2.2);
+				
+				float moonColorA = SAMPLE_TEXTURE2D(_MoonAlphaTex, sampler_MoonAlphaTex, uv).r;
+				moonColorA = pow(abs(moonColorA), 2.2);
 				moonColor = moonColorA * moonColor;
 				moonColor *= _MoonColor.rgb;
-				
-				float paramHorizon = saturate(1.0 - IN.param1.w);
-				paramHorizon *= _MoonColor.a;
-				moonColor *= paramHorizon;
+				moonColor *= _MoonColor.a;
 				
 				return float4(moonColor, 0.0);
-				
-				return 0;
 			}
 			
 			ENDHLSL
