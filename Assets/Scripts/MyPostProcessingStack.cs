@@ -513,16 +513,6 @@ public class MyPostProcessingStack : ScriptableObject
             cb.SetComputeTextureParam(histogramCS, hKernel, depthID, _depthID);
             cb.DispatchCompute(histogramCS, hKernel, height / 4, 1, 1);
 
-            uint x = 0;
-            uint[] arr = new uint[257];
-            avgLuminBuffer.GetData(arr);
-            for (int i = 0; i < 257; i++)
-            {
-                x += arr[i];
-            }
-
-            Debug.Log(arr[256]);
-
             ComputeShader calcCS = postProcessingAsset.AverageLuminanceCalculationCS;
             int cKernel = calcCS.FindKernel("CSMain");
             cb.SetComputeVectorParam(calcCS, avgLumaCalcDataID, new Vector4((int) height / 4, (int) width / 4, 0f, 1f));
@@ -592,7 +582,8 @@ public class MyPostProcessingStack : ScriptableObject
                     name = "eyeAdaptationPreRT"
                 };
 
-                Blit(cb, avgLuminanceTexRTID, eyeAdaptationPreRT);
+                Blit(cb, avgLuminanceTexRTID, eyeAdaptationPreRT, toneMappingMat,
+                    (int)ToneMappingEnum.EyeAdaptation);
             }
             else
             {
@@ -604,7 +595,7 @@ public class MyPostProcessingStack : ScriptableObject
                 cb.SetGlobalTexture(currentAvgLuminanceTexID, avgLuminanceTexRTID);
 
                 Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat,
-                    (int) ToneMappingEnum.EyeAdaptation);
+                    (int)ToneMappingEnum.EyeAdaptation);
                 Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
 
                 cb.ReleaseTemporaryRT(eyeAdaptationEndRT);
@@ -641,7 +632,7 @@ public class MyPostProcessingStack : ScriptableObject
         }
 
         Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
-        Blit(cb, avgLuminanceTexRTID, destID);
+
 
         cb.EndSample("ToneMapping");
 

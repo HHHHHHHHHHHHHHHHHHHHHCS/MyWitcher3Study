@@ -90,8 +90,8 @@
 
 	float4 EyeAdaptationPassFrag(VertexOutput i): SV_TARGET
 	{
-		float previousAvgLuminance = _PreviousAvgLuminanceTex.SampleLevel(sampler_PreviousAvgLuminanceTex, float2(0.5, 0.5), 0).r;
-		float currentAvgLuminance = _CurrentAvgLuminanceTex.SampleLevel(sampler_CurrentAvgLuminanceTex, float2(0.5, 0.5), 0).r;
+		float previousAvgLuminance = _PreviousAvgLuminanceTex.SampleLevel(sampler_PreviousAvgLuminanceTex, float2(0.0, 0.0), 0).r;
+		float currentAvgLuminance = _CurrentAvgLuminanceTex.SampleLevel(sampler_CurrentAvgLuminanceTex, float2(0.0, 0.0), 0).r;
 		
 		//根据正/负  用不同的 渐变速度
 		float adaptationSpeedFactor = (currentAvgLuminance <= previousAvgLuminance) ? eyeAdaptationSpeedFactor.x: eyeAdaptationSpeedFactor.y;
@@ -99,7 +99,7 @@
 		adaptationSpeedFactor = saturate(adaptationSpeedFactor);
 		
 		float adaptedLuminance = lerp(previousAvgLuminance, currentAvgLuminance, adaptationSpeedFactor);
-		return currentAvgLuminance;
+		return adaptedLuminance;
 	}
 	
 	float4 TonemappingSimplePassFrag(VertexOutput input): SV_TARGET

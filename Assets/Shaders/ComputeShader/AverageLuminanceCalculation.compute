@@ -18,147 +18,153 @@ groupshared uint shared_data[256];
 [numthreads(64, 1, 1)]
 void CSMain(uint3 GTid: SV_GroupThreadID)
 {
-	// GroupThreadID：单个线程组中当前处理的线程数。
-	//在这种情况下，threadID的值范围为[0-63]
-	const uint threadID = GTid.x;
-	uint idx = 0;
-	//第一步是使用上一阶段的数据设置整个共享数据。
-	//因为每个线程组有64个线程，所以每个线程组可以在一个线程中填充4个元素
-	//使用简单的偏移量。
-	UNITY_UNROLL
-	for (idx = 0; idx < 4; idx ++)
-	{
-		const uint offset = threadID + idx * 64;
-		shared_data[offset] = avgLumaBuffer[offset];
-		avgLumaBuffer[offset] = 0;
-	}
-	
-	GroupMemoryBarrierWithGroupSync();
-	
-	
-	//只有在线程组ID是0的时候 才计算
-	//UNITY_BRANCH
-	if (threadID == 0)
-	{
-		//想要计算的像素总数目
-		int fTotalPixels = int(avgLumaCalcData.x) * int(avgLumaCalcData.y);
-		//fTotalPixels = min(fTotalPixels, avgLumaBuffer[256]);
-		
-		//像素范围（或者更具体地说，屏幕亮度范围）
-		//我们想加入平均亮度的计算。
-		int pixelsToConsiderStart = fTotalPixels * avgLumaCalcData.z;
-		int pixelsToConsiderEnd = fTotalPixels * avgLumaCalcData.w;
-		int pixelsMinusOne = fTotalPixels - 1;
-		
-		pixelsToConsiderStart = clamp(pixelsToConsiderStart, 0, pixelsMinusOne);
-		pixelsToConsiderEnd = clamp(pixelsToConsiderEnd, pixelsToConsiderStart, pixelsMinusOne);
-		
-		
-		int numProcessedPixels = 0;
-		
-		int lumaValue = 0;
-		
-		//第一个循环的目的是忽略“ pixelsToConsiderStart”像素。
-		//我们保留前一个单元格省略的像素数和lumaValue在下一个循环中使用。
-		//
-		// 例如：
-		// * pixelToConsiderStart = 33000
-		// * *在循环的第一遍中，shared_data [0]具有37000像素，退出循环
-		//循环的输出为：
-		// numProcessedPixels = 0（应该省略33000像素，但必须考虑4000像素）
-		// lumaValue = 0（由于shared_data [0]中还剩4000像素，我们将从
-		//正是这一点）
-		UNITY_LOOP
-		while(lumaValue < 256)
-		{
-			//获取具有特定亮度值的像素数。
-			uint numPixels = max(shared_data[lumaValue],0);
-			
-			//检查lumaValue会有多少像素
-			int tempSum = numProcessedPixels + numPixels;
-			
-			//如果超过pixelToConsiderStart，则退出循环。
-			//因此，我们将从lumaValue开始计算亮度。
-			//简单来说，pixelsToConsiderStart是开始计算之前要忽略的“暗”像素数。
-			//UNITY_FLATTEN
-			if (tempSum >= pixelsToConsiderStart)
-			{
-				break;
-			}
-			else
-			{
-				numProcessedPixels = tempSum;
-				++ lumaValue;
-			}
-		}
+    // GroupThreadID：单个线程组中当前处理的线程数。
+    //在这种情况下，threadID的值范围为[0-63]
+    const uint threadID = GTid.x;
+    uint idx = 0;
+    //第一步是使用上一阶段的数据设置整个共享数据。
+    //因为每个线程组有64个线程，所以每个线程组可以在一个线程中填充4个元素
+    //使用简单的偏移量。
+    UNITY_UNROLL
+    for (idx = 0; idx < 4; idx ++)
+    {
+        const uint offset = threadID + idx * 64;
+        shared_data[offset] = avgLumaBuffer[offset];
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    
+    //只有在线程组ID是0的时候 才计算
+    //UNITY_BRANCH
+    if (threadID == 0)
+    {
+        //想要计算的像素总数目
+        int fTotalPixels = int(avgLumaCalcData.x) * int(avgLumaCalcData.y);
+        
+        //像素范围（或者更具体地说，屏幕亮度范围）
+        //我们想加入平均亮度的计算。
+        int pixelsToConsiderStart = fTotalPixels * avgLumaCalcData.z;
+        int pixelsToConsiderEnd = fTotalPixels * avgLumaCalcData.w;
+        int pixelsMinusOne = fTotalPixels - 1;
+        
+        pixelsToConsiderStart = clamp(pixelsToConsiderStart, 0, pixelsMinusOne);
+        pixelsToConsiderEnd = clamp(pixelsToConsiderEnd, pixelsToConsiderStart, pixelsMinusOne);
+        
+        
+        int numProcessedPixels = 0;
+        
+        int lumaValue = 0;
+        
+        //第一个循环的目的是忽略“ pixelsToConsiderStart”像素。
+        //我们保留前一个单元格省略的像素数和lumaValue在下一个循环中使用。
+        //
+        // 例如：
+        // * pixelToConsiderStart = 33000
+        // * *在循环的第一遍中，shared_data [0]具有37000像素，退出循环
+        //循环的输出为：
+        // numProcessedPixels = 0（应该省略33000像素，但必须考虑4000像素）
+        // lumaValue = 0（由于shared_data [0]中还剩4000像素，我们将从
+        //正是这一点）
+        UNITY_LOOP
+        while(lumaValue < 256)
+        {
+            //获取具有特定亮度值的像素数。
+            uint numPixels = max(shared_data[lumaValue], 0);
+            
+            //检查lumaValue会有多少像素
+            int tempSum = numProcessedPixels + numPixels;
+            
+            //如果超过pixelToConsiderStart，则退出循环。
+            //因此，我们将从lumaValue开始计算亮度。
+            //简单来说，pixelsToConsiderStart是开始计算之前要忽略的“暗”像素数。
+            //UNITY_FLATTEN
+            if (tempSum > pixelsToConsiderStart)
+            {
+                break;
+            }
+            else
+            {
+                numProcessedPixels = tempSum;
+                ++ lumaValue;
+            }
+        }
+        
+        //写0.0  如果在纯色的情况可能会出现纯黑色的bug
+        float finalAvgLuminance = 0.0f;
+        //第一个循环中被忽略的像素数
+        int numProcessedPixelStart = numProcessedPixels;
+        //此循环的目的是计算像素的贡献和平均亮度。
+        //我们从上一个循环中计算出的点开始，保留省略像素的数量并开始lumaValue正子。
+        //我们解码[0-255]范围内的亮度值，将其乘以具有此特定亮度的像素数，然后将其求和直到
+        //我们处理pixelsToConsiderEnd像素。
+        //之后，我们将总贡献除以分析像素数。
+        UNITY_LOOP
+        while(lumaValue < 256)
+        {
+            uint numPixels = shared_data[lumaValue];
+            
+            numProcessedPixels += int(numPixels);
+            
+            int encodedLumaUnit = lumaValue;
+            
+            float numberOfPixelsWithCurrentLuma = numPixels;
+            
+            float encodedLumaFloat = encodedLumaUnit;
+            
+            
+            //通过从第一遍（分发）开始颠倒编码过程来重新构造encodingLumaFloat，
+            //这是：
+            //
+            // float luma = dot（hdrPixelColor，LUMA_RGB）;
+            // float outLuma;
+            //
+            // outLuma = luma + 1.0; //因为log（0）是undef并且log（1）= 0
+            // outLuma = log（outLuma）//对数分布
+            // outLuma = outLuma * 128 //缩放128，表示log（1）* 128 = 0，log（2.71828）* 128 = 128，
+            // log（7.38905）* 128 = 256
+            
+            //我们先加0.5（我们不想为零）
+            float fDecodedLuma = encodedLumaFloat + 0.5f;
+            
+            // 解码亮度
+            fDecodedLuma /= 128.0;
+            fDecodedLuma = exp(fDecodedLuma);
+            fDecodedLuma -= 1.0;
+            
+            //计算该亮度的贡献
+            float fCurrentLumaContribution = max(numberOfPixelsWithCurrentLuma * fDecodedLuma, 0);
+            //所有先前遍和当前遍的（临时）贡献。
+            float tempTotalContribution = fCurrentLumaContribution + finalAvgLuminance;
+            
+            //UNITY_FLATTEN
+            if (numProcessedPixels > pixelsToConsiderEnd)
+            {
+                int diff = max(numProcessedPixels - numProcessedPixelStart, 1);
+                //我们已经处理了所有想要的像素，因此请在此处执行最终除法。
+                //从用户选择的开始算起的所有已处理像素数
+                finalAvgLuminance = tempTotalContribution / float(diff);
+                break;
+            }
+            else
+            {
+                //进一步传递当前贡献并增加lumaValue
+                finalAvgLuminance = tempTotalContribution;
+                ++ lumaValue;
+            }
+        }
+        //保存平均亮度
+        _MainTex[uint2(0, 0)] = finalAvgLuminance;
+    }
 
-		//写0.0  如果在纯色的情况可能会出现纯黑色的bug
-		float finalAvgLuminance = 0.0f;
-		//第一个循环中被忽略的像素数
-		int numProcessedPixelStart = numProcessedPixels;
-		//此循环的目的是计算像素的贡献和平均亮度。
-		//我们从上一个循环中计算出的点开始，保留省略像素的数量并开始lumaValue正子。
-		//我们解码[0-255]范围内的亮度值，将其乘以具有此特定亮度的像素数，然后将其求和直到
-		//我们处理pixelsToConsiderEnd像素。
-		//之后，我们将总贡献除以分析像素数。
-		UNITY_LOOP
-		while(lumaValue < 256)
-		{
-			uint numPixels = shared_data[lumaValue];
-			
-			numProcessedPixels += int(numPixels);
-			
-			int encodedLumaUnit = lumaValue;
-			
-			float numberOfPixelsWithCurrentLuma = numPixels;
-			
-			float encodedLumaFloat = encodedLumaUnit;
-			
-			
-			//通过从第一遍（分发）开始颠倒编码过程来重新构造encodingLumaFloat，
-			//这是：
-			//
-			// float luma = dot（hdrPixelColor，LUMA_RGB）;
-			// float outLuma;
-			//
-			// outLuma = luma + 1.0; //因为log（0）是undef并且log（1）= 0
-			// outLuma = log（outLuma）//对数分布
-			// outLuma = outLuma * 128 //缩放128，表示log（1）* 128 = 0，log（2.71828）* 128 = 128，
-			// log（7.38905）* 128 = 256
-			
-			//我们先加0.5（我们不想为零）
-			float fDecodedLuma = encodedLumaFloat + 0.5f;
-			
-			// 解码亮度
-			fDecodedLuma /= 128.0;
-			fDecodedLuma = exp(fDecodedLuma);
-			fDecodedLuma -= 1.0;
-			
-			//计算该亮度的贡献
-			float fCurrentLumaContribution = max(numberOfPixelsWithCurrentLuma * fDecodedLuma, 0);
-			//所有先前遍和当前遍的（临时）贡献。
-			float tempTotalContribution = fCurrentLumaContribution + finalAvgLuminance;
-			
-			//UNITY_FLATTEN
-			if (numProcessedPixels > pixelsToConsiderEnd)
-			{
-				int diff = max(numProcessedPixels - numProcessedPixelStart, 1);
-				//我们已经处理了所有想要的像素，因此请在此处执行最终除法。
-				//从用户选择的开始算起的所有已处理像素数
-				finalAvgLuminance = tempTotalContribution / float(diff);
-				finalAvgLuminance=0.1f;
-				break;
-			}
-			else
-			{
-				//进一步传递当前贡献并增加lumaValue
-				finalAvgLuminance = tempTotalContribution;
-				++ lumaValue;
-			}
-		}
-		avgLumaBuffer[256] = finalAvgLuminance;
-		//保存平均亮度
-		_MainTex[uint2(0, 0)] = finalAvgLuminance;
-	}
-
+    GroupMemoryBarrierWithGroupSync();
+    
+	//最后归零 否则可能会出现总数对不上的问题
+    UNITY_UNROLL
+    for (idx = 0; idx < 4; idx ++)
+    {
+        const uint offset = threadID + idx * 64;
+        avgLumaBuffer[offset] = 0;
+    }
+    
 }
