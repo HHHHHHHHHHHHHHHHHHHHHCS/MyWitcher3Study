@@ -381,7 +381,7 @@ public class MyPipeline : RenderPipeline
             camera, new ShaderPassName("MoonOnly"))
         {
             flags = drawFlags,
-            sorting = { flags = SortFlags.CommonOpaque }
+            sorting = {flags = SortFlags.CommonOpaque}
         };
         context.DrawRenderers(cull.visibleRenderers, ref moonOnlyDrawSettings, filterSettings);
 
@@ -440,7 +440,7 @@ public class MyPipeline : RenderPipeline
 
         if (renderToTexture)
         {
-            if (activeStack)
+            if (activeStack && camera.cameraType == CameraType.Game)
             {
                 activeStack.RenderAfterTransparent(postProcessingBuffer, cameraColorTextureID, cameraDepthTextureID
                     , renderWidth, renderHeight, renderSamples, format);

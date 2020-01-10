@@ -501,22 +501,31 @@ public class MyPostProcessingStack : ScriptableObject
 
             if (avgLuminBuffer == null)
             {
-                avgLuminBuffer = new ComputeBuffer(256, sizeof(uint));
+                avgLuminBuffer = new ComputeBuffer(257, sizeof(uint));
             }
 
             ComputeShader histogramCS = postProcessingAsset.AverageLuminanceHistogramCS;
             int hKernel = histogramCS.FindKernel("CSMain");
             cb.SetComputeBufferParam(histogramCS, hKernel, avgLumaBufferID, avgLuminBuffer);
             cb.SetComputeVectorParam(histogramCS, avgLumaHistDataID
-                , new Vector3(width / 4f, avgLumiSkyLerp, avgLumiSkyValue));
+                , new Vector4((int) width / 4, (int) height / 4, avgLumiSkyLerp, avgLumiSkyValue));
             cb.SetComputeTextureParam(histogramCS, hKernel, mainTexID, avgLumaRTID);
             cb.SetComputeTextureParam(histogramCS, hKernel, depthID, _depthID);
             cb.DispatchCompute(histogramCS, hKernel, height / 4, 1, 1);
 
+            uint x = 0;
+            uint[] arr = new uint[257];
+            avgLuminBuffer.GetData(arr);
+            for (int i = 0; i < 257; i++)
+            {
+                x += arr[i];
+            }
+
+            Debug.Log(arr[256]);
 
             ComputeShader calcCS = postProcessingAsset.AverageLuminanceCalculationCS;
             int cKernel = calcCS.FindKernel("CSMain");
-            cb.SetComputeVectorParam(calcCS, avgLumaCalcDataID, new Vector4((int) width / 4, (int) height / 4, 0f, 1f));
+            cb.SetComputeVectorParam(calcCS, avgLumaCalcDataID, new Vector4((int) height / 4, (int) width / 4, 0f, 1f));
             cb.SetComputeBufferParam(calcCS, cKernel, avgLumaBufferID, avgLuminBuffer);
             cb.SetComputeTextureParam(calcCS, cKernel, mainTexID, avgLuminanceTexRTID);
             cb.DispatchCompute(calcCS, cKernel, 64, 1, 1);
@@ -594,8 +603,8 @@ public class MyPostProcessingStack : ScriptableObject
                 cb.SetGlobalTexture(previousAvgLuminanceTexID, eyeAdaptationPreRT);
                 cb.SetGlobalTexture(currentAvgLuminanceTexID, avgLuminanceTexRTID);
 
-
-                Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat, (int) ToneMappingEnum.EyeAdaptation);
+                Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat,
+                    (int) ToneMappingEnum.EyeAdaptation);
                 Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
 
                 cb.ReleaseTemporaryRT(eyeAdaptationEndRT);
@@ -632,6 +641,7 @@ public class MyPostProcessingStack : ScriptableObject
         }
 
         Blit(cb, srcID, destID, toneMappingMat, (int) ToneMappingEnum.ToneMappingSimple);
+        Blit(cb, avgLuminanceTexRTID, destID);
 
         cb.EndSample("ToneMapping");
 

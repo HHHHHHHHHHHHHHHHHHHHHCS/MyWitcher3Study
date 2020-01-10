@@ -10,9 +10,7 @@ RWStructuredBuffer<uint> avgLumaBuffer;
 RWTexture2D<float> _MainTex;
 
 //UNROLL展开太多也会死机
-//不知道为什么groupshared数据只能写在RWStructuredBuffer 上面
-//如果通过groupshared 写在RWTexture2D 就crash 了
-//groupshared uint shared_data[256];
+groupshared uint shared_data[256];
 
 //1920 1080 缩小4倍数 480 270
 //线程组(270,1,1)  所以会执行 480*270/(270*1*1 * 64*1*1) 即 480/64
@@ -27,12 +25,12 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	//第一步是使用上一阶段的数据设置整个共享数据。
 	//因为每个线程组有64个线程，所以每个线程组可以在一个线程中填充4个元素
 	//使用简单的偏移量。
-	//UNITY_UNROLL
-	UNITY_LOOP
+	UNITY_UNROLL
 	for (idx = 0; idx < 4; idx ++)
 	{
 		const uint offset = threadID + idx * 64;
-		avgLumaBuffer[offset] = avgLumaBuffer[offset];
+		shared_data[offset] = avgLumaBuffer[offset];
+		avgLumaBuffer[offset] = 0;
 	}
 	
 	GroupMemoryBarrierWithGroupSync();
@@ -44,25 +42,21 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 	{
 		//想要计算的像素总数目
 		int fTotalPixels = int(avgLumaCalcData.x) * int(avgLumaCalcData.y);
+		//fTotalPixels = min(fTotalPixels, avgLumaBuffer[256]);
 		
 		//像素范围（或者更具体地说，屏幕亮度范围）
 		//我们想加入平均亮度的计算。
 		int pixelsToConsiderStart = fTotalPixels * avgLumaCalcData.z;
 		int pixelsToConsiderEnd = fTotalPixels * avgLumaCalcData.w;
-		
 		int pixelsMinusOne = fTotalPixels - 1;
 		
 		pixelsToConsiderStart = clamp(pixelsToConsiderStart, 0, pixelsMinusOne);
 		pixelsToConsiderEnd = clamp(pixelsToConsiderEnd, pixelsToConsiderStart, pixelsMinusOne);
 		
 		
-		
-		
 		int numProcessedPixels = 0;
 		
 		int lumaValue = 0;
-		
-		bool bExitLoop = false;
 		
 		//第一个循环的目的是忽略“ pixelsToConsiderStart”像素。
 		//我们保留前一个单元格省略的像素数和lumaValue在下一个循环中使用。
@@ -74,12 +68,11 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 		// numProcessedPixels = 0（应该省略33000像素，但必须考虑4000像素）
 		// lumaValue = 0（由于shared_data [0]中还剩4000像素，我们将从
 		//正是这一点）
-		//UNITY_LOOP
 		UNITY_LOOP
-		while(!bExitLoop)
+		while(lumaValue < 256)
 		{
 			//获取具有特定亮度值的像素数。
-			uint numPixels = avgLumaBuffer[lumaValue];
+			uint numPixels = max(shared_data[lumaValue],0);
 			
 			//检查lumaValue会有多少像素
 			int tempSum = numProcessedPixels + numPixels;
@@ -88,33 +81,30 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 			//因此，我们将从lumaValue开始计算亮度。
 			//简单来说，pixelsToConsiderStart是开始计算之前要忽略的“暗”像素数。
 			//UNITY_FLATTEN
-			if (tempSum > pixelsToConsiderStart)
+			if (tempSum >= pixelsToConsiderStart)
 			{
-				bExitLoop = true;
+				break;
 			}
 			else
 			{
 				numProcessedPixels = tempSum;
-				lumaValue ++ ;
+				++ lumaValue;
 			}
 		}
+
+		//写0.0  如果在纯色的情况可能会出现纯黑色的bug
 		float finalAvgLuminance = 0.0f;
-		
-		
 		//第一个循环中被忽略的像素数
 		int numProcessedPixelStart = numProcessedPixels;
-		
 		//此循环的目的是计算像素的贡献和平均亮度。
 		//我们从上一个循环中计算出的点开始，保留省略像素的数量并开始lumaValue正子。
 		//我们解码[0-255]范围内的亮度值，将其乘以具有此特定亮度的像素数，然后将其求和直到
 		//我们处理pixelsToConsiderEnd像素。
 		//之后，我们将总贡献除以分析像素数。
-		//bExitLoop = false;
-		//UNITY_LOOP
 		UNITY_LOOP
-		for (; lumaValue < 256; lumaValue ++)
+		while(lumaValue < 256)
 		{
-			uint numPixels = avgLumaBuffer[lumaValue];
+			uint numPixels = shared_data[lumaValue];
 			
 			numProcessedPixels += int(numPixels);
 			
@@ -145,7 +135,7 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 			fDecodedLuma -= 1.0;
 			
 			//计算该亮度的贡献
-			float fCurrentLumaContribution = numberOfPixelsWithCurrentLuma * fDecodedLuma;
+			float fCurrentLumaContribution = max(numberOfPixelsWithCurrentLuma * fDecodedLuma, 0);
 			//所有先前遍和当前遍的（临时）贡献。
 			float tempTotalContribution = fCurrentLumaContribution + finalAvgLuminance;
 			
@@ -156,30 +146,19 @@ void CSMain(uint3 GTid: SV_GroupThreadID)
 				//我们已经处理了所有想要的像素，因此请在此处执行最终除法。
 				//从用户选择的开始算起的所有已处理像素数
 				finalAvgLuminance = tempTotalContribution / float(diff);
+				finalAvgLuminance=0.1f;
 				break;
 			}
 			else
 			{
 				//进一步传递当前贡献并增加lumaValue
 				finalAvgLuminance = tempTotalContribution;
+				++ lumaValue;
 			}
 		}
-		
-		if (threadID == 0)
-		{
-			//保存平均亮度
-			_MainTex[uint2(0, 0)] = finalAvgLuminance;
-		}
+		avgLumaBuffer[256] = finalAvgLuminance;
+		//保存平均亮度
+		_MainTex[uint2(0, 0)] = finalAvgLuminance;
 	}
-	
-	GroupMemoryBarrierWithGroupSync();
-	
-	//UNITY_UNROLL
-	UNITY_LOOP
-	for (idx = 0; idx < 4; idx ++)
-	{
-		const uint offset = threadID + idx * 64;
-		//avgLumaBuffer[offset] = avgLumaBuffer[offset];
-		avgLumaBuffer[offset] = 0;
-	}
+
 }

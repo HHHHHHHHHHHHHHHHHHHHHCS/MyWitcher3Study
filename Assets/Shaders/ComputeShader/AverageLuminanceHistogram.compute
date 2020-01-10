@@ -87,5 +87,6 @@ void CSMain(uint3 GTid: SV_GroupThreadID, uint3 Gid: SV_GroupID)
 		const uint offset = threadID + idx * 64;
 		uint data = shared_data[offset];
 		InterlockedAdd(avgLumaBuffer[offset], data);
+		//InterlockedAdd(avgLumaBuffer[256], data);
 	}
 }

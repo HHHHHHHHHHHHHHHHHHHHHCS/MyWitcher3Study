@@ -99,7 +99,7 @@
 		adaptationSpeedFactor = saturate(adaptationSpeedFactor);
 		
 		float adaptedLuminance = lerp(previousAvgLuminance, currentAvgLuminance, adaptationSpeedFactor);
-		return adaptedLuminance;
+		return currentAvgLuminance;
 	}
 	
 	float4 TonemappingSimplePassFrag(VertexOutput input): SV_TARGET
