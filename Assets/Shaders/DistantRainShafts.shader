@@ -17,19 +17,14 @@
 			
 			#pragma multi_compile_instancing
 			
-			//一个月的长度
-			#define SYNODIC_MONTH_LENGTH 30
-			
-			#pragma vertex MoonPassVertex
-			#pragma fragment MoonPassFragment
+			#pragma vertex DistantRainShaftsPassVertex
+			#pragma fragment DistantRainShaftsPassFragment
 			
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+			#include "../ShaderLibrary/PPSBase.hlsl"
 			
 			
 			CBUFFER_START(UnityPerFrame)
-			float4x4 unity_MatrixV;
-			float4x4 glstate_matrix_projection;
-			
 			float4x4 unity_MatrixVP;
 			CBUFFER_END
 			
@@ -38,29 +33,42 @@
 			CBUFFER_END
 			
 			CBUFFER_START(DistantRainShafts)
-			float3 _ModelScale, _MeshBias;
+			float3 _ModelScale, _MeshBias; //object xyz
+			float2 _RainShaftsDepthCoefficents;
+			float4 _RainShaftsUVAnimData;//.xy uv   .zw scale
+			float2 _RainShaftsIntensityData;//.x minValue  .y maxValue
+			float3 _RainShaftsColor;
+			float2 _RainShaftsEffectAmount;// .x maxCoefficents   .y maskLerpValue
+			float4 _RainShaftsFinalColor;
+			
 			CBUFFER_END
 			
 			#define UNITY_MATRIX_M unity_ObjectToWorld
 			#define UNITY_MATRIX_I_M unity_WorldToObject
 			
-			struct VertexInput
+			struct RainShaftsVertexInput
 			{
 				float4 pos: POSITION;
 				float2 uv: TEXCOORD0;
 			};
 			
 			
-			struct VertexOutput
+			struct RainShaftsVertexOutput
 			{
 				float4 clipPos: SV_POSITION;
 				float3 uvZ: TEXCOORD0;
+				float4 positionH: TEXCOORD1;
 			};
 			
+			TEXTURE2D(_NoiseTex);
+			SAMPLER(sampler_NoiseTex);
 			
-			VertexOutput DistantRainShaftsPassVertex(VertexInput v)
+			TEXTURE2D(_DepthTex);
+			SAMPLER(sampler_DepthTex);
+			
+			RainShaftsVertexOutput DistantRainShaftsPassVertex(RainShaftsVertexInput v)
 			{
-				VertexOutput o = (VertexOutput)0;
+				RainShaftsVertexOutput o = (RainShaftsVertexOutput)0;
 				
 				o.uvZ.xy = v.uv;
 				
@@ -68,73 +76,59 @@
 				float3 meshBias = _MeshBias.xyz;//float3(-2,-2,-1)
 				float3 positionL = v.pos.w * meshScale + meshBias;
 				
-				o.uvZ.z = mul(unity_ObjectToWorld, positionL);
+				o.uvZ.z = mul(unity_ObjectToWorld, float4(positionL,1.0)).z;
 				
-				o.clipPos = UnityObjectToClipPos(v.pos);
+				o.clipPos = mul(unity_MatrixVP, mul(UNITY_MATRIX_M, v.pos));
 				
-				o.positionH = UnityObjectToClipPos(float4(positionL, 1.0));
+				o.positionH = mul(unity_MatrixVP, mul(UNITY_MATRIX_M, float4(positionL.xyz, 1.0)));
 				
 				return o;
 			}
 			
-			float GetFrustumDepth(in float depth)
-			{
-				float d = depth * cb12_v22.x + cb12_v22.y;
-				
-				d = d * cb12_v21.x + cb12_v21.y;
-				
-				return 1.0 / max(d, 1e-4);
-			}
-			
-			float4 DistantRainShaftsPassFragment(VertexOutput i): SV_TARGET
+			float4 DistantRainShaftsPassFragment(RainShaftsVertexOutput i): SV_TARGET
 			{
 				float2 inputUV = i.uvZ.xy;
 				float worldHeight = i.uvZ.z;
 				
-				float elapsedTime = cb0_v0.x;
-				float2 uvAnimation = cb4_v5.xy;
-				float2 uvScale = cb4_v4.xy;
-				float minValue = cb4_v2.x; //0.0
-				float maxValue = cb4_v3.x; //1.0
-				float3 shaftsColor = cb4_v0.rgb; //float3(147/255,162/255,173/255)
+				float elapsedTime = _Time.y;
+				float2 uvAnimation = _RainShaftsUVAnimData.xy;
+				float2 uvScale = _RainShaftsUVAnimData.zw;
+				float minValue = _RainShaftsIntensityData.x; //0.0
+				float maxValue = _RainShaftsIntensityData.y; //1.0
+				float3 shaftsColor = _RainShaftsColor.rgb; //float3(0.576471,0.635294,0.678431)
 				
-				float3 finalColorFilter = cb2_v2.rgb; //float3(1.175,1.296,1.342)
-				float finalEffectIntensity = cb2_v2.w;
+				float2 invViewportSize = _ScreenParams.zw - 1;
 				
-				float2 invViewportSize = cb0_v1.zw;
-				
-				float depthScale = cb4_v6.x; //0.001
 				
 				float2 uvOffsets = elapsedTime * uvAnimation;
 				float2 uv = inputUV * uvScale * uvOffsets;
-				float disturb = texture0.Sample(sampler0, uv).x;
+				float disturb = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, uv).r;
 				
 				float intensity = saturate(lerp(minValue, maxValue, disturb));
 				intensity *= inputUV.y;
-				intensity *= cb4_v1.x; //1.0
 				
 				float2 screenUV = i.positionH.xy * invViewportSize;
-				float hardwareDepth = texture15.Sample(samapler15, screenUV).x;
-				float frustumDepth = GetFrustumDepth(hardwareDepth);
+				float hardwareDepth = SAMPLE_TEXTURE2D(_DepthTex, sampler_DepthTex, inputUV).r;
+				hardwareDepth = LinearEyeDepth(hardwareDepth, _ZBufferParams);
+				hardwareDepth = hardwareDepth * _RainShaftsDepthCoefficents.x + _RainShaftsDepthCoefficents.y;
+				float frustumDepth = 1.0 / max(hardwareDepth, 1e-4);
 				
 				float depth = frustumDepth - worldHeight;
-				float distantObjectsMask = saturate(depth * depthScale);
+				//float depthScale = cb4_v6.x; //0.001
+				float distantObjectsMask = saturate(depth /* *depthScale*/);
 				
 				float finalEffectMask = saturate(intensity * distantObjectsMask);
 				
-				float paramX = finalEffectMask;
-				float paramY = cb0_v7.y * finalEffectMask;
-				float effectAmount = lerp(paramX, paramY, cb4_v7.x);
-				
+				float effectAmount = lerp(finalEffectMask, _RainShaftsEffectAmount.x * finalEffectMask, _RainShaftsEffectAmount.y);
 				float3 effectColor = effectAmount * shaftsColor;
 				
-				//gamma
-				effectColor = pow(effectColor, 2.2);
+				//if gamma
+				//effectColor = pow(effectColor, 2.2);
 				
-				effectColor *= finalColorFilter;
-				effectColor *= finalEffectIntensity;
+				effectColor *= _RainShaftsFinalColor.rgb;//float3(1.175,1.296,1.342)
+				effectColor *= _RainShaftsFinalColor.a;
 				
-				//return zero alpha 
+				//return zero alpha
 				//srcColor * 1.0 + (1.0 - srcAlpha) * destColor
 				return float4(effectColor, 0.0);
 			}
