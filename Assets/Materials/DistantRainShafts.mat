@@ -23,5 +23,14 @@ Material:
         m_Texture: {fileID: 2800000, guid: db6271d6a5ab9d44b88e249765e4e1c1, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _NoiseTex:
+        m_Texture: {fileID: 2800000, guid: db6271d6a5ab9d44b88e249765e4e1c1, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Floats: []
-    m_Colors: []
+    m_Colors:
+    - _RainShaftsColor: {r: 0.576471, g: 0.635294, b: 0.67843, a: 1}
+    - _RainShaftsEffectAmount: {r: 1, g: 0.5, b: 0, a: 0}
+    - _RainShaftsFinalColor: {r: 1.175, g: 1.296, b: 1.342, a: 1}
+    - _RainShaftsIntensityData: {r: 0, g: 1, b: 0, a: 0}
+    - _RainShaftsUVAnimData: {r: 0, g: 0, b: 1, a: 1}

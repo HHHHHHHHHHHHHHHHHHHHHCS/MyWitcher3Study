@@ -385,6 +385,14 @@ public class MyPipeline : RenderPipeline
         };
         context.DrawRenderers(cull.visibleRenderers, ref moonOnlyDrawSettings, filterSettings);
 
+        var moon1OnlyDrawSettings = new DrawRendererSettings(
+            camera, new ShaderPassName("MoonOnly1"))
+        {
+            flags = drawFlags,
+            sorting = { flags = SortFlags.CommonOpaque }
+        };
+        context.DrawRenderers(cull.visibleRenderers, ref moon1OnlyDrawSettings, filterSettings);
+
         if (activeStack)
         {
             if (needsDepth)

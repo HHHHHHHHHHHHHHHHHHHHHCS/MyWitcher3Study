@@ -83,7 +83,7 @@
 				unity_MatrixV[0].w = unity_MatrixV[1].w = unity_MatrixV[2].w = 0;
 				o.clipPos = mul(unity_MatrixV, worldPos);
 				o.clipPos = mul(glstate_matrix_projection, o.clipPos);
-				
+
 				o.uv = v.uv;
 				o.normal = v.normal.xyz;
 				o.tangent = v.tangent.xyz;

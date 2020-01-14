@@ -2,15 +2,24 @@
 {
 	Properties
 	{
-		_MainTex ("Texture", 2D) = "white" { }
+		_NoiseTex ("_NoiseTex", 2D) = "white" { }
+		_RainShaftsUVAnimData ("Rain Shafts UV AnimData", Vector) = (0, 0, 1, 1)
+		_RainShaftsIntensityData ("Rain Shafts Intensity Data", Vector) = (0, 1, 0, 0)
+		_RainShaftsColor ("Rain Shafts Color", Color) = (1, 1, 1)
+		_RainShaftsEffectAmount ("Rain Shafts Effect Amount", Vector) = (1, 0.5, 0, 0)
+		[HDR]_RainShaftsFinalColor ("Rain Shafts Final Color", Color) = (1, 1, 1)
 	}
 	SubShader
 	{
+		Cull  Off
+		
 		Tags { "RenderType" = "Opaque" }
 		LOD 100
 		
 		Pass
 		{
+			Tags { "LightMode" = "MoonOnly1" }
+			
 			HLSLPROGRAM
 			
 			#pragma target 3.5
@@ -25,6 +34,9 @@
 			
 			
 			CBUFFER_START(UnityPerFrame)
+			float4x4 unity_MatrixV;
+			float4x4 glstate_matrix_projection;
+			
 			float4x4 unity_MatrixVP;
 			CBUFFER_END
 			
@@ -32,16 +44,7 @@
 			float4x4 unity_ObjectToWorld, unity_WorldToObject;
 			CBUFFER_END
 			
-			CBUFFER_START(DistantRainShafts)
-			float3 _ModelScale, _MeshBias; //object xyz
-			float2 _RainShaftsDepthCoefficents;
-			float4 _RainShaftsUVAnimData;//.xy uv   .zw scale
-			float2 _RainShaftsIntensityData;//.x minValue  .y maxValue
-			float3 _RainShaftsColor;
-			float2 _RainShaftsEffectAmount;// .x maxCoefficents   .y maskLerpValue
-			float4 _RainShaftsFinalColor;
 			
-			CBUFFER_END
 			
 			#define UNITY_MATRIX_M unity_ObjectToWorld
 			#define UNITY_MATRIX_I_M unity_WorldToObject
@@ -56,70 +59,55 @@
 			struct RainShaftsVertexOutput
 			{
 				float4 clipPos: SV_POSITION;
-				float3 uvZ: TEXCOORD0;
-				float4 positionH: TEXCOORD1;
+				float2 uv: TEXCOORD0;
 			};
 			
 			TEXTURE2D(_NoiseTex);
 			SAMPLER(sampler_NoiseTex);
 			
-			TEXTURE2D(_DepthTex);
-			SAMPLER(sampler_DepthTex);
+			float4 _RainShaftsUVAnimData;//.xy uv   .zw scale
+			float2 _RainShaftsIntensityData;//.x minValue  .y maxValue
+			float3 _RainShaftsColor;
+			float2 _RainShaftsEffectAmount;// .x maxCoefficents   .y maskLerpValue
+			float4 _RainShaftsFinalColor;// .rgb color   .a intensity
 			
 			RainShaftsVertexOutput DistantRainShaftsPassVertex(RainShaftsVertexInput v)
 			{
 				RainShaftsVertexOutput o = (RainShaftsVertexOutput)0;
 				
-				o.uvZ.xy = v.uv;
+				unity_MatrixV[0].w = unity_MatrixV[1].w = unity_MatrixV[2].w = 0;
+				float4x4 mvp = mul(glstate_matrix_projection, mul(unity_MatrixV, UNITY_MATRIX_M));
 				
-				float3 meshScale = _ModelScale.xyz;//float3(4,4,2)
-				float3 meshBias = _MeshBias.xyz;//float3(-2,-2,-1)
-				float3 positionL = v.pos.w * meshScale + meshBias;
+				o.uv.xy = v.uv;
 				
-				o.uvZ.z = mul(unity_ObjectToWorld, float4(positionL,1.0)).z;
-				
-				o.clipPos = mul(unity_MatrixVP, mul(UNITY_MATRIX_M, v.pos));
-				
-				o.positionH = mul(unity_MatrixVP, mul(UNITY_MATRIX_M, float4(positionL.xyz, 1.0)));
+				o.clipPos = mul(mvp, v.pos);
+				o.clipPos.z = 0;
+
 				
 				return o;
 			}
 			
 			float4 DistantRainShaftsPassFragment(RainShaftsVertexOutput i): SV_TARGET
 			{
-				float2 inputUV = i.uvZ.xy;
-				float worldHeight = i.uvZ.z;
+				float2 inputUV = i.uv.xy;
 				
 				float elapsedTime = _Time.y;
 				float2 uvAnimation = _RainShaftsUVAnimData.xy;
 				float2 uvScale = _RainShaftsUVAnimData.zw;
 				float minValue = _RainShaftsIntensityData.x; //0.0
 				float maxValue = _RainShaftsIntensityData.y; //1.0
-				float3 shaftsColor = _RainShaftsColor.rgb; //float3(0.576471,0.635294,0.678431)
-				
-				float2 invViewportSize = _ScreenParams.zw - 1;
-				
 				
 				float2 uvOffsets = elapsedTime * uvAnimation;
-				float2 uv = inputUV * uvScale * uvOffsets;
+				float2 uv = inputUV * uvScale + uvOffsets;
 				float disturb = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, uv).r;
 				
 				float intensity = saturate(lerp(minValue, maxValue, disturb));
 				intensity *= inputUV.y;
 				
-				float2 screenUV = i.positionH.xy * invViewportSize;
-				float hardwareDepth = SAMPLE_TEXTURE2D(_DepthTex, sampler_DepthTex, inputUV).r;
-				hardwareDepth = LinearEyeDepth(hardwareDepth, _ZBufferParams);
-				hardwareDepth = hardwareDepth * _RainShaftsDepthCoefficents.x + _RainShaftsDepthCoefficents.y;
-				float frustumDepth = 1.0 / max(hardwareDepth, 1e-4);
-				
-				float depth = frustumDepth - worldHeight;
-				//float depthScale = cb4_v6.x; //0.001
-				float distantObjectsMask = saturate(depth /* *depthScale*/);
-				
-				float finalEffectMask = saturate(intensity * distantObjectsMask);
+				float finalEffectMask = saturate(intensity);
 				
 				float effectAmount = lerp(finalEffectMask, _RainShaftsEffectAmount.x * finalEffectMask, _RainShaftsEffectAmount.y);
+				float3 shaftsColor = _RainShaftsColor.rgb; //float3(0.576471,0.635294,0.678431)
 				float3 effectColor = effectAmount * shaftsColor;
 				
 				//if gamma
@@ -128,7 +116,7 @@
 				effectColor *= _RainShaftsFinalColor.rgb;//float3(1.175,1.296,1.342)
 				effectColor *= _RainShaftsFinalColor.a;
 				
-				//return zero alpha
+				//return zero alpha  but I don't do that
 				//srcColor * 1.0 + (1.0 - srcAlpha) * destColor
 				return float4(effectColor, 0.0);
 			}
