@@ -81,8 +81,7 @@
 				o.uv.xy = v.uv;
 				
 				o.clipPos = mul(mvp, v.pos);
-				o.clipPos.z = 0;
-
+				o.clipPos.z = 1;
 				
 				return o;
 			}
