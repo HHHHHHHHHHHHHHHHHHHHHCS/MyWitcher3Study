@@ -13,12 +13,9 @@
 	{
 		Cull  Off
 		
-		Tags { "RenderType" = "Opaque" }
-		LOD 100
-		
 		Pass
 		{
-			Tags { "LightMode" = "MoonOnly1" }
+			//Tags { "LightMode" = "MoonOnly1" }
 			
 			HLSLPROGRAM
 			
@@ -75,13 +72,18 @@
 			{
 				RainShaftsVertexOutput o = (RainShaftsVertexOutput)0;
 				
-				unity_MatrixV[0].w = unity_MatrixV[1].w = unity_MatrixV[2].w = 0;
-				float4x4 mvp = mul(glstate_matrix_projection, mul(unity_MatrixV, UNITY_MATRIX_M));
-				
+//				unity_MatrixV[0].w = unity_MatrixV[1].w = unity_MatrixV[2].w = 0;
+//				float4x4 mvp = mul(glstate_matrix_projection, mul(unity_MatrixV, UNITY_MATRIX_M));
+//				o.clipPos = mul(mvp, v.pos);
+
+				o.clipPos = mul(unity_MatrixVP , mul(unity_ObjectToWorld , float4(v.pos.xyz , 1.0)));
+				o.clipPos.z = 1;
+				#if UNITY_UV_STARTS_AT_TOP
+					o.clipPos.z = 0;
+				#endif
 				o.uv.xy = v.uv;
 				
-				o.clipPos = mul(mvp, v.pos);
-				o.clipPos.z = 1;
+
 				
 				return o;
 			}

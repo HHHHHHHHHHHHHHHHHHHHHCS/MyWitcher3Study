@@ -14,7 +14,7 @@
 	{
 		Pass
 		{
-			Tags { "LightMode" = "MoonOnly" }
+			//Tags { "LightMode" = "MoonOnly" }
 			
 			
 			HLSLPROGRAM
@@ -79,11 +79,15 @@
 			VertexOutput MoonPassVertex(VertexInput v)
 			{
 				VertexOutput o = (VertexOutput)0;
-				float4 worldPos = mul(UNITY_MATRIX_M, float4(v.pos.xyz, 1.0));
-				unity_MatrixV[0].w = unity_MatrixV[1].w = unity_MatrixV[2].w = 0;
-				o.clipPos = mul(unity_MatrixV, worldPos);
-				o.clipPos = mul(glstate_matrix_projection, o.clipPos);
-				o.clipPos = o.clipPos.xyww;
+//				float4 worldPos = mul(UNITY_MATRIX_M, float4(v.pos.xyz, 1.0));
+//				unity_MatrixV[0].w = unity_MatrixV[1].w = unity_MatrixV[2].w = 0;
+//				o.clipPos = mul(unity_MatrixV, worldPos);
+//				o.clipPos = mul(glstate_matrix_projection, o.clipPos);
+				o.clipPos = mul(unity_MatrixVP, mul(unity_ObjectToWorld, float4(v.pos.xyz, 1.0)));
+				o.clipPos.z = 1;
+				#if UNITY_UV_STARTS_AT_TOP
+					o.clipPos.z = 0;
+				#endif
 
 				o.uv = v.uv;
 				o.normal = v.normal.xyz;

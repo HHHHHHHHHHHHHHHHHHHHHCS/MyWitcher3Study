@@ -377,24 +377,34 @@ public class MyPipeline : RenderPipeline
 
         context.DrawSkybox(camera);
 
-        var moonOnlyDrawSettings = new DrawRendererSettings(
-            camera, new ShaderPassName("MoonOnly"))
-        {
-            flags = drawFlags,
-            sorting = {flags = SortFlags.CommonOpaque}
-        };
-        context.DrawRenderers(cull.visibleRenderers, ref moonOnlyDrawSettings, filterSettings);
 
-        var moon1OnlyDrawSettings = new DrawRendererSettings(
-            camera, new ShaderPassName("MoonOnly1"))
-        {
-            flags = drawFlags,
-            sorting = { flags = SortFlags.CommonOpaque }
-        };
-        context.DrawRenderers(cull.visibleRenderers, ref moon1OnlyDrawSettings, filterSettings);
+        //        var moonOnlyDrawSettings = new DrawRendererSettings(
+        //            camera, new ShaderPassName("MoonOnly"))
+        //        {
+        //            flags = drawFlags,
+        //            sorting = {flags = SortFlags.CommonOpaque}
+        //        };
+        //        context.DrawRenderers(cull.visibleRenderers, ref moonOnlyDrawSettings, filterSettings);
+        //
+        //        var moon1OnlyDrawSettings = new DrawRendererSettings(
+        //            camera, new ShaderPassName("MoonOnly1"))
+        //        {
+        //            flags = drawFlags,
+        //            sorting = { flags = SortFlags.CommonOpaque }
+        //        };
+        //        context.DrawRenderers(cull.visibleRenderers, ref moon1OnlyDrawSettings, filterSettings);
+
 
         if (activeStack)
         {
+            activeStack.DrawDistantRainShafts(postProcessingBuffer, camera);
+            context.ExecuteCommandBuffer(postProcessingBuffer);
+            postProcessingBuffer.Clear();
+
+            activeStack.DrawMoon(postProcessingBuffer, camera);
+            context.ExecuteCommandBuffer(postProcessingBuffer);
+            postProcessingBuffer.Clear();
+
             if (needsDepth)
             {
                 if (needsDepthOnlyPass)
@@ -414,7 +424,6 @@ public class MyPipeline : RenderPipeline
                     context.DrawRenderers(cull.visibleRenderers, ref depthOnlyDrawSettings, filterSettings);
                 }
             }
-
 
             activeStack.RenderAfterOpaque(
                 postProcessingBuffer, cameraColorTextureID, cameraDepthTextureID

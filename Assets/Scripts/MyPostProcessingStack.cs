@@ -77,13 +77,27 @@ public class MyPostProcessingStack : ScriptableObject
     private static int caCenterID = Shader.PropertyToID("caCenter");
     private static int caCustomDataID = Shader.PropertyToID("caCustomData");
 
+
+    #region 雨幕
+
+    //画雨幕
+    [SerializeField] private bool distantRainShafts = false;
+
+    #endregion
+
+    #region 月亮
+
+    //画月亮
+    [SerializeField] private bool moon = false;
+
+    #endregion
+
     #region 深度处理
 
     //深度处理
     [SerializeField] private bool depthStripes = false;
 
     #endregion
-
 
     #region 模糊强度
 
@@ -349,7 +363,6 @@ public class MyPostProcessingStack : ScriptableObject
             }
         }
 
-        /*
         if (sharpen)
         {
             int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
@@ -389,7 +402,6 @@ public class MyPostProcessingStack : ScriptableObject
             Blit(cb, nowRTID, cameraColorID);
             nowRTID = cameraColorID;
         }
-        */
 
         Blit(cb, nowRTID, BuiltinRenderTextureType.CameraTarget);
 
@@ -583,7 +595,7 @@ public class MyPostProcessingStack : ScriptableObject
                 };
 
                 Blit(cb, avgLuminanceTexRTID, eyeAdaptationPreRT, toneMappingMat,
-                    (int)ToneMappingEnum.EyeAdaptation);
+                    (int) ToneMappingEnum.EyeAdaptation);
             }
             else
             {
@@ -595,7 +607,7 @@ public class MyPostProcessingStack : ScriptableObject
                 cb.SetGlobalTexture(currentAvgLuminanceTexID, avgLuminanceTexRTID);
 
                 Blit(cb, avgLuminanceTexRTID, eyeAdaptationEndRT, toneMappingMat,
-                    (int)ToneMappingEnum.EyeAdaptation);
+                    (int) ToneMappingEnum.EyeAdaptation);
                 Blit(cb, eyeAdaptationEndRT, eyeAdaptationPreRT);
 
                 cb.ReleaseTemporaryRT(eyeAdaptationEndRT);
@@ -704,4 +716,32 @@ public class MyPostProcessingStack : ScriptableObject
 
         cb.EndSample("Chromatic Aberration");
     }
+
+    public void DrawDistantRainShafts(CommandBuffer cb, Camera camera)
+    {
+        if (distantRainShafts)
+        {
+            if (postProcessingAsset.DistantRainShaftsMesh != null &&
+                postProcessingAsset.DistantRainShaftsMaterial != null)
+            {
+                Matrix4x4 TRS = Matrix4x4.TRS(camera.transform.position, Quaternion.identity, Vector3.one);
+                cb.DrawMesh(postProcessingAsset.DistantRainShaftsMesh, TRS,
+                    postProcessingAsset.DistantRainShaftsMaterial, 0);
+            }
+        }
+    }
+
+    public void DrawMoon(CommandBuffer cb, Camera camera)
+    {
+        if (moon)
+        {
+            if (postProcessingAsset.MoonMesh != null && postProcessingAsset.MoonMaterial != null)
+            {
+                Matrix4x4 TRS = Matrix4x4.TRS(camera.transform.position + Vector3.one * 500, Quaternion.identity,
+                    Vector3.one * 100);
+                cb.DrawMesh(postProcessingAsset.MoonMesh, TRS, postProcessingAsset.MoonMaterial, 0);
+            }
+        }
+    }
+
 }
