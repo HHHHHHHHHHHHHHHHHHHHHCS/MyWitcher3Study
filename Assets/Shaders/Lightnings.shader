@@ -105,6 +105,27 @@
 				float colorMultiplier = cb4_v0.x;
 				float3 colorFilter = cb4_v1.xyz;
 				float3 lightningColorRGB = cb2_v2.rgb;
+				
+				float animation = elapsedTime * animationSpeed + INPUT.TEXCOORDS.x;
+				
+				int intX0 = asint(floor(animation));
+				int intX1 = asint(floor(animation - 1.0));
+				
+				float n0 = IntegerNoise(intX0);
+				float n1 = IntegerNoise(intX1);
+				
+				float weight = 1.0 - frac(animation);
+				
+				float noise = lerp(n0, n1, SCurve(weight));
+				
+				float lightningAmount = saturate(lerp(minAmount, maxAmount, noise));
+				lightningAmount *= cb2_v2.w;
+				
+				float3 lightningColor = colorMultiplier * colorFilter;
+				lightningColor *= lightningColorRGB;
+				
+				float3 finalLightningColor = lightningColor * lightningAmount;
+				return float4(finalLightningColor, lightningAmount);
 			}
 			
 			ENDHLSL
