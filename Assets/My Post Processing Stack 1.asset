@@ -14,6 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   distantRainShafts: 1
   moon: 1
+  lightnings: 1
   depthStripes: 0
   blurStrength: 0
   avgLumiComputeShader: 1

@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 6
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Lightnings
+  m_Shader: {fileID: 4800000, guid: d974f5b83a61cc240a931ff93933b1c9, type: 3}
+  m_ShaderKeywords: 
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 1
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Floats:
+    - _AnimationSpeed: 2
+    - _LigtningsExplosion: 0.01
+    - _NoiseAmount: 1
+    - _NoiseMax: 1
+    - _NoiseMin: 0
+    m_Colors:
+    - _ColorFilter: {r: 0.20652366, g: 0.76293695, b: 0.8584906, a: 1}
+    - _LightningColorRGB: {r: 0.13171947, g: 0.3583384, b: 0.754717, a: 1}

@@ -1,22 +1,29 @@
 ﻿Shader "MyPipeline/Lightnings"
 {
-	Properties { }
+	Properties
+	{
+		_LigtningsExplosion ("Ligtnings Explosion", Float) = 0.01
+		_AnimationSpeed ("Animation Speed", Float) = 1.0
+		_NoiseMin ("Noise Min", Float) = 0.0
+		_NoiseMax ("Noise Max", Float) = 1.0
+		_NoiseAmount ("Noise Amount", Float) = 1.0
+		_ColorFilter ("Color Filter", Color) = (1.0, 1.0, 1.0, 1.0)
+		_LightningColorRGB ("Lightning Color RGB", Color) = (1.0, 1.0, 1.0, 1.0)
+	}
 	SubShader
 	{
-		Cull  Off
-		
 		Pass
 		{
-			//Tags { "LightMode" = "MoonOnly1" }
+			//Tags { "LightMode" = "MoonOnly" }
 			
 			HLSLPROGRAM
 			
 			#pragma target 3.5
 			
-			#pragma multi_compile_instancing
-			
-			#pragma vertex DistantRainShaftsPassVertex
-			#pragma fragment DistantRainShaftsPassFragment
+			//#pragma multi_compile_instancing
+
+			#pragma vertex LightningsPassVertex
+			#pragma fragment LightningsPassFragment
 			
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
 			#include "../ShaderLibrary/PPSBase.hlsl"
@@ -32,7 +39,6 @@
 			CBUFFER_START(UnityPerDraw)
 			float4x4 unity_ObjectToWorld, unity_WorldToObject;
 			CBUFFER_END
-			
 			
 			
 			#define UNITY_MATRIX_M unity_ObjectToWorld
@@ -53,6 +59,12 @@
 			};
 			
 			float _LigtningsExplosion;
+			float _AnimationSpeed;
+			float _NoiseMin;
+			float _NoiseMax;
+			float _NoiseAmount;
+			float4 _ColorFilter;
+			float4 _LightningColorRGB;
 			
 			
 			LightningsVertexOutput LightningsPassVertex(LightningsVertexInput v)
@@ -64,13 +76,14 @@
 				//o.clipPos = mul(mvp, v.pos);
 				
 				v.pos.xyz += v.normal * _LigtningsExplosion;
-				o.clipPos = mul(unity_MatrixVP, mul(unity_ObjectToWorld, float4(v.pos.xyz, 1.0)));
+				float4 worldPos = mul(unity_ObjectToWorld, float4(v.pos.xyz, 1.0));
+				o.clipPos = mul(unity_MatrixVP, worldPos);
 				o.clipPos.z = 1;
 				#if UNITY_UV_STARTS_AT_TOP
 					o.clipPos.z = 0;
 				#endif
 				o.uv.xy = v.uv;
-				
+
 				return o;
 			}
 			
@@ -93,20 +106,9 @@
 				return - 2.0 * x3 + 3.0 * x2;
 			}
 			
-			float4 LightningsPassFragment(LightningsOutput i): SV_TARGET
+			float4 LightningsPassFragment(LightningsVertexOutput i): SV_TARGET
 			{
-				// * Inputs
-				float elapsedTime = cb0_v0.x;
-				float animationSpeed = cb4_v4.x;
-				
-				float minAmount = cb4_v2.x;
-				float maxAmount = cb4_v3.x;
-				
-				float colorMultiplier = cb4_v0.x;
-				float3 colorFilter = cb4_v1.xyz;
-				float3 lightningColorRGB = cb2_v2.rgb;
-				
-				float animation = elapsedTime * animationSpeed + INPUT.TEXCOORDS.x;
+				float animation = _Time.y * _AnimationSpeed + i.uv.x;
 				
 				int intX0 = asint(floor(animation));
 				int intX1 = asint(floor(animation - 1.0));
@@ -118,11 +120,11 @@
 				
 				float noise = lerp(n0, n1, SCurve(weight));
 				
-				float lightningAmount = saturate(lerp(minAmount, maxAmount, noise));
-				lightningAmount *= cb2_v2.w;
+				float lightningAmount = saturate(lerp(_NoiseMin, _NoiseMax, noise));
+				lightningAmount *= _NoiseAmount;
 				
-				float3 lightningColor = colorMultiplier * colorFilter;
-				lightningColor *= lightningColorRGB;
+				float3 lightningColor = _ColorFilter.a * _ColorFilter.rgb;
+				lightningColor *= _LightningColorRGB.rgb;
 				
 				float3 finalLightningColor = lightningColor * lightningAmount;
 				return float4(finalLightningColor, lightningAmount);

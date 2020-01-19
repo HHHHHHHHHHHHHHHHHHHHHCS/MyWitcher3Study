@@ -20,9 +20,7 @@
 			HLSLPROGRAM
 			
 			#pragma target 3.5
-			
-			#pragma multi_compile_instancing
-			
+					
 			//一个月的长度
 			#define SYNODIC_MONTH_LENGTH 30
 			

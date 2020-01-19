@@ -405,6 +405,10 @@ public class MyPipeline : RenderPipeline
             context.ExecuteCommandBuffer(postProcessingBuffer);
             postProcessingBuffer.Clear();
 
+            activeStack.DrawLightnings(postProcessingBuffer, camera);
+            context.ExecuteCommandBuffer(postProcessingBuffer);
+            postProcessingBuffer.Clear();
+
             if (needsDepth)
             {
                 if (needsDepthOnlyPass)

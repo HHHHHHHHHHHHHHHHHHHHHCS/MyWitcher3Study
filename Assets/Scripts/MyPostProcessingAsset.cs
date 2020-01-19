@@ -28,6 +28,9 @@ public class MyPostProcessingAsset : ScriptableObject
     //月亮材质球
     [SerializeField] private Material moonMaterial = null;
 
+    //闪电预制件
+    [SerializeField] private GameObject lightningsPrefab = null;
+
 
     public Texture2D VignetteComplexMaskTexture =>
         vignetteComplexMaskTexture == null ? Texture2D.blackTexture : vignetteComplexMaskTexture;
@@ -44,4 +47,5 @@ public class MyPostProcessingAsset : ScriptableObject
 
     public Material MoonMaterial => moonMaterial;
 
+    public GameObject LightningsPrefab => lightningsPrefab;
 }

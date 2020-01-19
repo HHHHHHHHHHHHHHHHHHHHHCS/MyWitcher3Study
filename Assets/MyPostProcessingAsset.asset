@@ -18,8 +18,10 @@ MonoBehaviour:
     type: 3}
   averageLuminanceCalculationCS: {fileID: 7200000, guid: 3b203bfb28bf3d94d9d75ca4d3f02b0e,
     type: 3}
-  moonMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
-  moonMaterial: {fileID: 2100000, guid: 7df250e81c0a5254a9384678ff9b6b2f, type: 2}
   distantRainShaftsMesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
   distantRainShaftsMaterial: {fileID: 2100000, guid: 835c1244ebd374645b85eb1040043588,
     type: 2}
+  moonMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
+  moonMaterial: {fileID: 2100000, guid: 7df250e81c0a5254a9384678ff9b6b2f, type: 2}
+  lightningsPrefab: {fileID: 7418186770002266396, guid: 0228571c7257d7048a5a20ce3a557957,
+    type: 3}

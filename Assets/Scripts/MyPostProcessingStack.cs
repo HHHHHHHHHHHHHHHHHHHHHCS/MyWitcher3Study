@@ -92,6 +92,13 @@ public class MyPostProcessingStack : ScriptableObject
 
     #endregion
 
+    #region 闪电
+
+    //画月亮
+    [SerializeField] private bool lightnings = false;
+
+    #endregion
+
     #region 深度处理
 
     //深度处理
@@ -242,6 +249,10 @@ public class MyPostProcessingStack : ScriptableObject
 
     private RenderTexture eyeAdaptationPreRT;
     private ComputeBuffer avgLuminBuffer;
+
+    private Matrix4x4[] lightsningMatrixs;
+    private Mesh lightningMesh;
+    private Material lightningMaterial;
 
     public bool NeedsDepth => depthStripes || toneMapping;
 
@@ -744,4 +755,35 @@ public class MyPostProcessingStack : ScriptableObject
         }
     }
 
+
+    public void DrawLightnings(CommandBuffer cb, Camera camera)
+    {
+        if (lightnings)
+        {
+            var lightnings = postProcessingAsset.LightningsPrefab;
+            if (lightnings != null && lightnings.transform.childCount > 0)
+            {
+                if (lightsningMatrixs == null)
+                {
+                    var tss = lightnings.transform;
+
+                    lightsningMatrixs = new Matrix4x4[lightnings.transform.childCount];
+                    for (int i = 0; i < lightsningMatrixs.Length; i++)
+                    {
+                        var ts = tss.GetChild(i);
+                        lightsningMatrixs[i] = Matrix4x4.TRS(ts.position, ts.rotation, ts.lossyScale);
+                    }
+
+                    lightningMesh = tss.GetChild(0).GetComponent<MeshFilter>().sharedMesh;
+                    lightningMaterial = tss.GetChild(0).GetComponent<MeshRenderer>().sharedMaterial;
+                }
+
+                if (lightsningMatrixs != null)
+                    foreach (var matrix in lightsningMatrixs)
+                    {
+                        cb.DrawMesh(lightningMesh, matrix, lightningMaterial, 0, 0);
+                    }
+            }
+        }
+    }
 }
