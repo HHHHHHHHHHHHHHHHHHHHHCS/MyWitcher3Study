@@ -82,7 +82,7 @@
 		float scaledWhitePoint = middleGray * 11.2;
 		
 		float luma = avgLuminance / scaledWhitePoint;
-		luma = pow(luma, powParam);
+		luma = pow(luma, abs(powParam));
 		
 		float exposure = middleGray / (luma * scaledWhitePoint);
 		return exposure;
@@ -112,7 +112,7 @@
 		float scaledWhitePoint = customData.x * 11.2;
 		
 		float luma = avgLuminance / scaledWhitePoint;
-		luma = pow(luma, customData.z);
+		luma = pow(luma, abs(customData.z));
 		
 		luma = luma * scaledWhitePoint;
 		luma = customData.x / luma;

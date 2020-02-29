@@ -8,7 +8,7 @@
 	float4 _ScreenParams;
 	//Unity传入
 	float4 _Time;
-
+	float3 _WorldSpaceCameraPos;
 	
 	struct VertexInput
 	{
@@ -37,5 +37,34 @@
 		
 		return output;
 	}
+	
+	float SCurve(float x)
+	{
+		float x2 = x * x;
+		float x3 = x2 * x;
+		
+		// -2x^3 + 3x^2
+		return - 2.0 * x3 + 3.0 * x2;
+	}
+	
+	int GetInt(float x)
+	{
+		return asint(floor(x));
+	}
+	
+	int GetReverseInt(float x)
+	{
+		return reversebits(GetInt(x));
+	}
+	
+	// Shaders in TW3 use integer noise.
+	// For more details see: http://libnoise.sourceforge.net/noisegen/
+	float IntegerNoise(int n)
+	{
+		n = (n >> 13) ^ n;
+		int nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
+		return((float)nn / 1073741824.0);
+	}
+	
 	
 #endif // MYRP_PPS_BASE

@@ -12,21 +12,46 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a02d8d8def614b449dc3da8b1717c5c, type: 3}
   m_Name: My Post Processing Stack
   m_EditorClassIdentifier: 
+  sky: 0
+  sunTheta: 0
+  sunPhi: 0
+  sunExponent: 0
+  sunColor: {r: 0, g: 0, b: 0, a: 0}
+  starsColor: {r: 0, g: 0, b: 0, a: 0}
+  distantRainShafts: 0
+  moon: 0
+  lightnings: 0
   depthStripes: 0
   blurStrength: 0
+  avgLumiComputeShader: 1
+  avgLumiSkyLerp: 0.5
+  avgLumiSkyValue: 0
   eyeAdaptation: 1
   eyeAdaptationSpeed: {x: 0.05, y: 0.05}
   toneMapping: 1
   tmluminanceClamp: {x: 0, y: 2}
   tmCurveABC: {x: 0.25, y: 0.306, z: 0.99}
-  tmcurveDEF: {x: 0.35, y: 0.025, z: 0.4}
+  tmCurveDEF: {x: 0.35, y: 0.025, z: 0.4}
   tmCustomData: {x: 0.245, y: 1.5, z: 0.75}
+  sharpen: 0
+  sharpenNear: 1
+  sharpenFar: 0
+  sharpenDistanceScale: 1
+  sharpenDistanceBias: 0
+  sharpenLumScale: 1
+  sharpenLumBias: 0
+  drunkEffect: 0
+  drunkRadius: 1
+  drunkIntensity: 1
+  drunkRotationSpeed: 0.05
+  drunkCenter: {x: 0.5, y: 0.5}
   vignette: 0
-  vignetteIntensity: 0.75
+  simpleVignette: 1
+  vignetteSimpleIntensity: 0.75
   vignetteSimpleThreshold: 0.75
+  vignetteComplexIntensity: 0.8
   vignetteComplexWeights: {x: 0.98, y: 0.98, z: 0.98}
   vignetteComplexDarkColor: {r: 0.011764706, g: 0.015686275, b: 0.019607844, a: 1}
-  vignetteComplexMask: {fileID: 0}
   chromaticAberration: 1
   caCenter: {x: 0.5, y: 0.5}
   caCenterDistanceThreshold: 0.2

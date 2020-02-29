@@ -42,6 +42,12 @@ public class MyPostProcessingStack : ScriptableObject
     private static int mainTexID = Shader.PropertyToID("_MainTex");
     private static int depthID = Shader.PropertyToID("_DepthTex");
 
+
+    private static int sunThetaID = Shader.PropertyToID("_SunTheta");
+    private static int sunColorID = Shader.PropertyToID("_SunColor");
+    private static int starsColorID = Shader.PropertyToID("_StarsColor");
+
+
     private static int avgLumaRTID = Shader.PropertyToID("avgLumaRT");
     private static int avgLumaBufferID = Shader.PropertyToID("avgLumaBuffer");
     private static int avgLumaHistDataID = Shader.PropertyToID("avgLumaHistData");
@@ -77,25 +83,46 @@ public class MyPostProcessingStack : ScriptableObject
     private static int caCenterID = Shader.PropertyToID("caCenter");
     private static int caCustomDataID = Shader.PropertyToID("caCustomData");
 
+    #region 天空
+
+    //画天空
+    [Space(10f), Header("Sky"), SerializeField]
+    private bool sky = false;
+
+    [Range(0, 2 * Mathf.PI), SerializeField]
+    private float sunTheta, sunPhi;
+
+    [Range(0, 64), SerializeField] private int sunExponent;
+
+    [ColorUsage(false), SerializeField] private Color sunColor;
+
+    [ColorUsage(false), SerializeField] private Color starsColor;
+
+
+    #endregion
 
     #region 雨幕
 
     //画雨幕
-    [SerializeField] private bool distantRainShafts = false;
+    [Space(10f), Header("DistantRainShafts"), SerializeField]
+    private bool distantRainShafts = false;
 
     #endregion
+
 
     #region 月亮
 
     //画月亮
-    [SerializeField] private bool moon = false;
+    [Space(10f), Header("Moon"), SerializeField]
+    private bool moon = false;
 
     #endregion
 
     #region 闪电
 
-    //画月亮
-    [SerializeField] private bool lightnings = false;
+    //画闪电
+    [Space(10f), Header("Lightnings"), SerializeField]
+    private bool lightnings = false;
 
     #endregion
 
@@ -726,6 +753,22 @@ public class MyPostProcessingStack : ScriptableObject
         Blit(cb, srcID, destID, chromaticAberrationMat);
 
         cb.EndSample("Chromatic Aberration");
+    }
+
+    public void DrawSky(CommandBuffer cb, Camera camera)
+    {
+        if (sky)
+        {
+            if (postProcessingAsset.SkyMesh != null && postProcessingAsset.SkyMaterial != null)
+            {
+                cb.SetGlobalVector(sunThetaID, new Vector3(sunTheta, sunPhi, sunExponent));
+                cb.SetGlobalColor(sunColorID, sunColor);
+                cb.SetGlobalColor(starsColorID, starsColor);
+                Matrix4x4 TRS = Matrix4x4.TRS(camera.transform.position, Quaternion.identity,
+                    Vector3.one);
+                cb.DrawMesh(postProcessingAsset.SkyMesh, TRS, postProcessingAsset.SkyMaterial, 0);
+            }
+        }
     }
 
     public void DrawDistantRainShafts(CommandBuffer cb, Camera camera)

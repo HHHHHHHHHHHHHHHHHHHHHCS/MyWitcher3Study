@@ -397,6 +397,12 @@ public class MyPipeline : RenderPipeline
 
         if (activeStack)
         {
+            postProcessingBuffer.BeginSample("Render Other Objects");
+
+            activeStack.DrawSky(postProcessingBuffer, camera);
+            context.ExecuteCommandBuffer(postProcessingBuffer);
+            postProcessingBuffer.Clear();
+
             activeStack.DrawDistantRainShafts(postProcessingBuffer, camera);
             context.ExecuteCommandBuffer(postProcessingBuffer);
             postProcessingBuffer.Clear();
@@ -408,6 +414,9 @@ public class MyPipeline : RenderPipeline
             activeStack.DrawLightnings(postProcessingBuffer, camera);
             context.ExecuteCommandBuffer(postProcessingBuffer);
             postProcessingBuffer.Clear();
+
+            postProcessingBuffer.EndSample("Render Other Objects");
+
 
             if (needsDepth)
             {

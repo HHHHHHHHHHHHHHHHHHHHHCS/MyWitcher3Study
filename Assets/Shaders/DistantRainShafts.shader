@@ -81,8 +81,6 @@
 				#endif
 				o.uv.xy = v.uv;
 				
-
-				
 				return o;
 			}
 			

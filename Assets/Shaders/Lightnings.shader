@@ -88,24 +88,6 @@
 			}
 			
 			
-			// Shaders in TW3 use integer noise.
-			// For more details see: http://libnoise.sourceforge.net/noisegen/
-			float IntegerNoise(int n)
-			{
-				n = (n >> 13) ^ n;
-				int nn = (n * (n * n * 60493 + 19990303) + 1376312589) & 0x7fffffff;
-				return((float)nn / 1073741824.0);
-			}
-			
-			float SCurve(float x)
-			{
-				float x2 = x * x;
-				float x3 = x2 * x;
-				
-				// -2x^3 + 3x^2
-				return - 2.0 * x3 + 3.0 * x2;
-			}
-			
 			float4 LightningsPassFragment(LightningsVertexOutput i): SV_TARGET
 			{
 				float animation = _Time.y * _AnimationSpeed + i.uv.x;

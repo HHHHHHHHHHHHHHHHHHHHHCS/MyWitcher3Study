@@ -22,6 +22,12 @@ public class MyPostProcessingAsset : ScriptableObject
     //雨远处材质
     [SerializeField] private Material distantRainShaftsMaterial = null;
 
+    //天空模型
+    [SerializeField] private Mesh skyMesh = null;
+
+    //天空材质球
+    [SerializeField] private Material skyMaterial = null;
+
     //月亮模型
     [SerializeField] private Mesh moonMesh = null;
 
@@ -38,6 +44,10 @@ public class MyPostProcessingAsset : ScriptableObject
     public ComputeShader AverageLuminanceHistogramCS => averageLuminanceHistogramCS;
 
     public ComputeShader AverageLuminanceCalculationCS => averageLuminanceCalculationCS;
+
+    public Mesh SkyMesh => skyMesh;
+
+    public Material SkyMaterial => skyMaterial;
 
     public Mesh DistantRainShaftsMesh => distantRainShaftsMesh;
 

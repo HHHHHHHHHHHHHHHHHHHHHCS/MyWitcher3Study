@@ -21,6 +21,8 @@ MonoBehaviour:
   distantRainShaftsMesh: {fileID: 10206, guid: 0000000000000000e000000000000000, type: 0}
   distantRainShaftsMaterial: {fileID: 2100000, guid: 835c1244ebd374645b85eb1040043588,
     type: 2}
+  skyMesh: {fileID: 4300000, guid: 89e1fed0eb72a2b41904f3745e40ed3b, type: 2}
+  skyMaterial: {fileID: 2100000, guid: 4917e90148311b447ab6757c663aa6ea, type: 2}
   moonMesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}
   moonMaterial: {fileID: 2100000, guid: 7df250e81c0a5254a9384678ff9b6b2f, type: 2}
   lightningsPrefab: {fileID: 7418186770002266396, guid: 0228571c7257d7048a5a20ce3a557957,
