@@ -48,7 +48,7 @@
 			{
 				float4 pos: POSITION;
 				float2 uv: TEXCOORD0;
-				float3 normal: TEXCOORD1;
+				float3 normal: NORMAL;
 			};
 			
 			

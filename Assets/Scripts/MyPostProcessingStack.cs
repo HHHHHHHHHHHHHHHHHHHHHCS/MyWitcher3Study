@@ -83,6 +83,14 @@ public class MyPostProcessingStack : ScriptableObject
     private static int caCenterID = Shader.PropertyToID("caCenter");
     private static int caCustomDataID = Shader.PropertyToID("caCustomData");
 
+    #region Stencil
+
+    //画模版
+    [Space(10f), Header("Stencil"), SerializeField]
+    public bool stencil = false;
+
+    #endregion
+
     #region 天空
 
     //画天空

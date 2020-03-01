@@ -375,6 +375,7 @@ public class MyPipeline : RenderPipeline
             cull.visibleRenderers, ref drawSettings, filterSettings);
 
 
+
         context.DrawSkybox(camera);
 
 
@@ -398,6 +399,16 @@ public class MyPipeline : RenderPipeline
         if (activeStack)
         {
             postProcessingBuffer.BeginSample("Render Other Objects");
+
+            if (activeStack.stencil)
+            {
+                drawSettings.SetShaderPassName(0, new ShaderPassName("SRPStencil"));
+                drawSettings.sorting.flags = SortFlags.CommonOpaque;
+                filterSettings.renderQueueRange = RenderQueueRange.all;
+                context.DrawRenderers(
+                    cull.visibleRenderers, ref drawSettings, filterSettings);
+                drawSettings.SetShaderPassName(0, new ShaderPassName("SRPDefaultUnlit"));
+            }
 
             activeStack.DrawSky(postProcessingBuffer, camera);
             context.ExecuteCommandBuffer(postProcessingBuffer);
@@ -456,8 +467,12 @@ public class MyPipeline : RenderPipeline
                     RenderBufferStoreAction.Store);
             }
 
+
+
             context.ExecuteCommandBuffer(cameraBuffer);
             cameraBuffer.Clear();
+
+
         }
 
 

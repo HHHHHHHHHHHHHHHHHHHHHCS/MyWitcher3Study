@@ -43,7 +43,7 @@
 			{
 				float4 pos: POSITION;
 				float2 uv: TEXCOORD0;
-				float3 normal: TEXCOORD1;
+				float3 normal: NORMAL;
 			};
 			
 			struct SkyVertexOutput
@@ -70,7 +70,7 @@
 				#endif
 				
 				o.uv.xy = v.uv;
-				o.worldToCamera = normalize(worldPos - _WorldSpaceCameraPos);
+				o.worldToCamera = worldPos.xyz - _WorldSpaceCameraPos.xyz;
 				
 				float3 sunDir;
 				sunDir.x = sin(_SunTheta.x) * cos(_SunTheta.y);
@@ -127,6 +127,7 @@
 			{
 				float4 skyColor = SAMPLE_TEXTURE2D(_SkyTex, sampler_SkyTex, i.uv);
 				
+				i.worldToCamera = normalize(i.worldToCamera);
 				float cosTheta = saturate(dot(i.sunDir, i.worldToCamera));
 				float sunGradient = pow(cosTheta, _SunTheta.z);
 				

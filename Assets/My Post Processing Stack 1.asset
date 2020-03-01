@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a02d8d8def614b449dc3da8b1717c5c, type: 3}
   m_Name: My Post Processing Stack 1
   m_EditorClassIdentifier: 
+  stencil: 0
   sky: 1
   sunTheta: 0.57
   sunPhi: 1.75
@@ -28,7 +29,7 @@ MonoBehaviour:
   avgLumiSkyValue: 0
   eyeAdaptation: 1
   eyeAdaptationSpeed: {x: 0.05, y: 0.05}
-  toneMapping: 1
+  toneMapping: 0
   tmluminanceClamp: {x: 0, y: 2}
   tmCurveABC: {x: 0.25, y: 0.35, z: 1.5}
   tmCurveDEF: {x: 0.35, y: 0.03, z: 0.25}
@@ -45,7 +46,7 @@ MonoBehaviour:
   drunkIntensity: 0.5
   drunkRotationSpeed: 0.075
   drunkCenter: {x: 0.5, y: 0.5}
-  vignette: 0
+  vignette: 1
   simpleVignette: 1
   vignetteSimpleIntensity: 0.95
   vignetteSimpleThreshold: 0.75
