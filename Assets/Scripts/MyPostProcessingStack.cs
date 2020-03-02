@@ -32,7 +32,7 @@ public class MyPostProcessingStack : ScriptableObject
 
     private static Mesh fullScreenTriangle;
 
-    private static Material mainMat, toneMappingMat, sharpenMat, drunkEffectMat, chromaticAberrationMat, vignetteMat;
+    private static Material mainMat, toneMappingMat, sharpenMat, drunkEffectMat, chromaticAberrationMat, vignetteMat, fishEyeMat;
 
     private static int tempTexID = Shader.PropertyToID("tempTex");
     private static int temp1TexID = Shader.PropertyToID("temp1Tex");
@@ -88,6 +88,10 @@ public class MyPostProcessingStack : ScriptableObject
     //画模版
     [Space(10f), Header("Stencil"), SerializeField]
     public bool stencil = false;
+
+    //鱼眼
+    [SerializeField]
+    public bool fishEye = true;
 
     #endregion
 
@@ -346,6 +350,12 @@ public class MyPostProcessingStack : ScriptableObject
             name = "My Vignette Material",
             hideFlags = HideFlags.HideAndDontSave
         };
+
+        fishEyeMat = new Material(Shader.Find("Hidden/My Pipeline/FishEye"))
+        {
+            name = "My Fish Eye",
+            hideFlags = HideFlags.HideAndDontSave
+        };
     }
 
     public void Setup(MyPostProcessingAsset asset)
@@ -439,6 +449,14 @@ public class MyPostProcessingStack : ScriptableObject
         {
             int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
             ChromaticAberration(cb, nowRTID, endRTID, width, height, format);
+            nowRTID = endRTID;
+        }
+
+        //FishEye
+        if (fishEye)
+        {
+            int endRTID = nowRTID == cameraColorID || nowRTID == resolved2TexID ? resolved1TexID : resolved2TexID;
+            FishEye(cb, nowRTID, endRTID, width, height, format);
             nowRTID = endRTID;
         }
 
@@ -761,6 +779,16 @@ public class MyPostProcessingStack : ScriptableObject
         Blit(cb, srcID, destID, chromaticAberrationMat);
 
         cb.EndSample("Chromatic Aberration");
+    }
+
+    private void FishEye(CommandBuffer cb, RenderTargetIdentifier srcID, RenderTargetIdentifier destID
+        , int width, int height, RenderTextureFormat format)
+    {
+        cb.BeginSample("Fish Eye");
+
+        Blit(cb, srcID, destID, fishEyeMat);
+
+        cb.EndSample("Fish Eye");
     }
 
     public void DrawSky(CommandBuffer cb, Camera camera)

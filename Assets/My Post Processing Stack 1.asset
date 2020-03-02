@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6a02d8d8def614b449dc3da8b1717c5c, type: 3}
   m_Name: My Post Processing Stack 1
   m_EditorClassIdentifier: 
-  stencil: 0
+  stencil: 1
+  fishEye: 1
   sky: 1
   sunTheta: 0.57
   sunPhi: 1.75
