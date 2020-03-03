@@ -37,7 +37,7 @@
 		float time = _Time.y;
 		
 		// Main value which causes fisheye effect [0-1]
-		const float fisheyeAmount = saturate(_FishEyeAmount);
+		float fisheyeAmount = 1;//saturate(_FishEyeAmount);
 		
 		// *** Shader
 		
@@ -61,7 +61,6 @@
 			mask_gray_corners = 1 - min(1.0, length(newUv));
 		}
 		
-		
 		// circle radius used further
 		float circle_radius;
 		{
@@ -76,15 +75,12 @@
 			circle_radius = saturate(cor * 20.0) ; // r0.x, line 21
 		}
 		
-		return circle_radius;
 		
-		/*
 		// * Zooming effect
 		float2 offsetUV = 0;
 		float2 colorUV = 0;
 		{
-			float2 uv4 = 2 * PosH.xy;
-			uv4 /= cb0_v2.xy;
+			float2 uv4 = 2 * uv;
 			uv4 -= float2(1.0, 1.0);
 			
 			float mask3 = dot(uv4, uv4);
@@ -96,17 +92,15 @@
 			offsetUV = clamp(uv4, float2(-0.4, -0.4), float2(0.4, 0.4));
 			offsetUV *= zoomAmount;
 			
-			float2 uv = PosH.xy * invTexSize; // main uv
 			colorUV = uv - offsetUV * amount;
 		}
 		
-		
 		// * Sample color map
-		float3 color = texture0.Sample(sampler0, colorUV).rgb; // r2.xyz
 		
-		
+		float3 color = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, colorUV).rgb; // r2.xyz
+
+/*
 		// * Sample outline map
-		
 		// interesting objects (upper left square)
 		float2 outlineUV = colorUV * 0.5;
 		float outlineInteresting = texture2.Sample(sampler2, outlineUV).x; // r0.y
@@ -118,13 +112,16 @@
 		
 		outlineInteresting /= 8.0; // r4.x
 		outlineTraces /= 8.0; // r4.y
+*/
+		float outlineInteresting = 0.0; // r4.x
+		float outlineTraces = 0.0; // r4.y
 		
 		float timeParam = time * 0.1;
 		
 		// adjust circle radius
 		circle_radius = 1.0 - circle_radius;
 		circle_radius *= 0.03;
-		
+
 		float3 color_circle_main = float3(0.0, 0.0, 0.0);
 		
 		[loop]
@@ -145,6 +142,7 @@
 			// line 55
 			float2 uv_outline_base = colorUV + unitCircle / 8.0;
 			
+			/*
 			// * interesting objects (circle)
 			float2 uv_outline_interesting_circle = uv_outline_base * 0.5;
 			float outline_interesting_circle = texture2.Sample(sampler2, uv_outline_interesting_circle).x;
@@ -154,16 +152,22 @@
 			float2 uv_outline_traces_circle = uv_outline_base * 0.5 + float2(0.5, 0.0);
 			float outline_traces_circle = texture2.Sample(sampler2, uv_outline_traces_circle).x;
 			outlineTraces += outline_traces_circle / 8.0;
+			*/
+
+			outlineInteresting += 0.0;
+			outlineTraces += 0.0;
 			
 			// * sample color texture with perturbation
 			float2 uv_color_circle = colorUV + unitCircle * offsetUV;
-			float3 color_circle = texture0.Sample(sampler0, uv_color_circle).rgb;
+			float3 color_circle = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, uv_color_circle).rgb; 
 			color_circle_main += color_circle / 8.0;
 		}
+
 		
 		// * Sample intensity map
-		float2 intensityMap = texture3.Sample(sampler0, colorUV).xy;
-		
+		//float2 intensityMap = texture3.Sample(sampler0, colorUV).xy;
+		float2 intensityMap = float2(1.0, 1.0);
+
 		float intensityInteresting = intensityMap.r;
 		float intensityTraces = intensityMap.g;
 		
@@ -182,6 +186,7 @@
 		// (2) Then mix "regular" color with the above.
 		// Please note this operation makes corners gradually grey (because fisheyeAmount rises from 0 to 1).
 		mainColor = lerp(color, mainColor, fisheyeAmount);
+
 		
 		// * Determine color of witcher senses
 		float3 senses_traces = mainOutlineTraces * colorTraces;
@@ -196,6 +201,5 @@
 		
 		float3 finalColor = lerp(mainColor, senses_total_sat, dot_senses_total);
 		return float4(finalColor, 1.0);
-		*/
 	}
 #endif //My_FishEye

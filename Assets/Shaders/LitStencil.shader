@@ -3,7 +3,7 @@
 	Properties
 	{
 		_Color ("Color", Color) = (1, 1, 1, 1)
-		_StencilColor ("Stencil Color", Color) = (1, 1, 1, 1)
+		[HDR] _StencilColor ("Stencil Color", Color) = (1, 1, 1, 1)
 		_MainTex ("Albedo & Alpha", 2D) = "white" { }
 		[KeywordEnum(Off, On, Shadows)] _Clipping ("Alpha Clipping", Float) = 0
 		_Cutoff ("Alpha Cutoff", Range(0, 1)) = 0.5
